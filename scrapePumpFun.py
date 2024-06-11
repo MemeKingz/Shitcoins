@@ -1,14 +1,19 @@
-import requests
-import json
-import os
-from telethon import TelegramClient
+from telethon import TelegramClient, events
 import re
-import asyncio
+import os
+import json
+from dotenv import load_dotenv
 
-api_id = '29624477'
-api_hash = '1bb44d4c8505ee865d5df38759d388b5'
-phone = '+61430904746'
-channel_username = 'PumpFunHotCalls'
+# Load environment variables from .env file
+load_dotenv()
+
+api_id = int(os.getenv('API_ID'))
+api_hash = os.getenv('API_HASH')
+phone = os.getenv('PHONE')
+channel_username = os.getenv('CHANNEL_USERNAME')
+
+client = TelegramClient('session_name', api_id, api_hash)
+
 
 class MintAddressFetcher:
     def __init__(self, seen_file='seen_addresses.json'):

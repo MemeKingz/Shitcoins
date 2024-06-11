@@ -3,3 +3,4 @@ scrapePumpFun.cpython-312.pyc
 coins/
 __pycache__/
 seen_addresses.json
+.env
