@@ -1,4 +1,4 @@
-from telethon import TelegramClient, events
+from telethon import TelegramClient
 import re
 
 api_id = '29624477'
@@ -25,11 +25,3 @@ async def fetch_mint_addresses(limit=100):
             mint_addresses.append(mint_address)
 
     return mint_addresses
-
-
-with client:
-    mint_addresses = client.loop.run_until_complete(fetch_mint_addresses())
-
-
-for address in mint_addresses:
-    print(address)
