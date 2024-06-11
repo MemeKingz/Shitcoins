@@ -9,7 +9,8 @@ def fetch_mint_addresses(limit=10):
     if response.status_code == 200:
         data = response.json()
         mint_addresses = data.get("mint", [])
-        return mint_addresses
+        filtered_addresses = [address for address in mint_addresses if 'pump' in address]
+        return filtered_addresses
     else:
         print(f"Error retrieving data: {response.status_code}")
         return []
