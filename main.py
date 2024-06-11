@@ -1,11 +1,9 @@
-from scrapePumpFun import client, fetch_mint_addresses
+from scrapePumpFun import fetch_mint_addresses
 
-async def main():
-    mint_addresses = await fetch_mint_addresses()
-    
+def main():
+    mint_addresses = fetch_mint_addresses()
     for address in mint_addresses:
         print(address)
 
-# Run the main function
-with client:
-    client.loop.run_until_complete(main())
+if __name__ == "__main__":
+    main()
