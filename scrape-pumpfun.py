@@ -1,31 +1,35 @@
 from telethon import TelegramClient, events
 import re
 
-
 api_id = '29624477'
 api_hash = '1bb44d4c8505ee865d5df38759d388b5'
 
 client = TelegramClient('session_name', api_id, api_hash)
 
-def filter_message(text):
-    name = re.search(r'💸 \*\*Name\*\*: `(.*?)`', text)
-    symbol = re.search(r'💫 \*\*Symbol\*\*: `(.*?)`', text)
-    mcap = re.search(r'💰 \*\*MCAP\*\*: `(.*?)`', text)
+def extract_mint_address(text):
     mint = re.search(r'🧪 \*\*Mint\*\*: `(.*?)`', text)
-    
-    if name and symbol and mcap and mint:
-        return f"Name: `{name.group(1)}`\nSymbol: `{symbol.group(1)}`\nMCAP: `{mcap.group(1)}`\nMint: `{mint.group(1)}`\n"
+    if mint:
+        return mint.group(1)
     return None
 
-async def main():
+async def fetch_mint_addresses(limit=100):
     await client.start()
-
+    
     entity = await client.get_entity('pumpfundetector')
 
-    async for message in client.iter_messages(entity, limit=100):
-        filtered_message = filter_message(message.text)
-        if filtered_message:
-            print(filtered_message)
+    mint_addresses = []
+
+    async for message in client.iter_messages(entity, limit=limit):
+        mint_address = extract_mint_address(message.text)
+        if mint_address:
+            mint_addresses.append(mint_address)
+
+    return mint_addresses
+
 
 with client:
-    client.loop.run_until_complete(main())
+    mint_addresses = client.loop.run_until_complete(fetch_mint_addresses())
+
+
+for address in mint_addresses:
+    print(address)
