@@ -16,15 +16,15 @@ def scrape_solscan(tokenAddress, debug=False):
         while True:
             formatted_url = base_url.format(tokenAddress=tokenAddress, page=page)
             driver.get(formatted_url)
-            time.sleep(10)
+            time.sleep(5) #adjust according to your pc speed
             
             try:
                 table = driver.find_element(By.TAG_NAME, 'table')
                 rows = table.find_elements(By.TAG_NAME, 'tr')
-                if not rows or len(rows) == 1:  # Assuming the header row is always present
+                if not rows or len(rows) == 1:
                     break
                 
-                for row in rows[1:]:  # Skip header row
+                for row in rows[1:]:
                     columns = row.find_elements(By.TAG_NAME, 'td')
                     if columns and columns[1].text.strip():
                         account_addresses.append(columns[1].text.strip())

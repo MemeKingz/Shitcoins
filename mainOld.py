@@ -1,25 +1,21 @@
 import json
 import os
-import asyncio
-from scrapePumpFun import MintAddressFetcher
+from scrapePumpFunOld import MintAddressFetcher
 from solscannerScrape import scrape_solscan
 
-async def main():
+def main():
+    # Ensure the 'coins' directory exists
     if not os.path.exists('coins'):
         os.makedirs('coins')
     
     fetcher = MintAddressFetcher()
+    mint_addresses = fetcher.fetch_mint_addresses()
     
-    # Fetch pump addresses from Telegram
-    pump_addresses = await fetcher.fetch_pump_addresses_from_telegram()
-    print(f"Fetched pump addresses: {pump_addresses}")  # Debugging statement
-    
-    for address in pump_addresses:
+    for address in mint_addresses:
         print(f"Getting holder address for {address}")
         holder_addresses = scrape_solscan(address)
-        print(f"Holder addresses for {address}: {holder_addresses}")  # Debugging statement
         
-        if len(holder_addresses) >= 50:
+        if len(holder_addresses) >= 5:
             address_data = {
                 "coin address": address,
                 "holders": holder_addresses
@@ -33,4 +29,4 @@ async def main():
     print("goodbye")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
