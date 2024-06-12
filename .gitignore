@@ -4,3 +4,4 @@ coins/
 __pycache__/
 seen_addresses.json
 .env
+old/
