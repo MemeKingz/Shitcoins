@@ -1,3 +1,5 @@
+import multiprocessing
+
 import requests
 from dotenv import load_dotenv
 import os
@@ -17,19 +19,20 @@ if not API_KEY:
 # Define a pattern for Solana addresses
 solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{32,44}$")
 
+
 def is_valid_solana_address(address):
     """Check if the address matches the Solana address pattern."""
     return bool(solana_address_pattern.match(address))
 
-# Function to get transfer data for a given holder address
-def get_holder_transfers(holder_address, current_time, debug=False):
+
+# Function to determine if holder should be SKIPPED, IGNORED or INCLUDED with earliest transfer time
+def get_first_transfer_time(holder_address, current_time, debug=False) -> str | datetime | None:
     if not is_valid_solana_address(holder_address):
         if debug:
             print(f"Invalid Solana address: {holder_address}")
-        return []
+        return
 
     limit = 50
-    transfers = []
     last_tx_hash = ""
     total_transactions = 0
 
@@ -59,17 +62,14 @@ def get_holder_transfers(holder_address, current_time, debug=False):
                     break
 
                 total_transactions += len(data)
-
-                # Check if the first transaction in the batch is older than 24 hours
-                first_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
-                if current_time - first_transfer_time > timedelta(hours=24):
-                    break
-
-                transfers.extend([{'blockTime': tx['blockTime']} for tx in data if 'blockTime' in tx])
+                latest_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
+                earliest_transfer_time = datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
                 last_tx_hash = data[-1]['txHash']
 
-                if len(data) < limit:
-                    break
+                # Check number of returned transactions is at the end or latest transaction is older than 24 hours
+                if len(data) < limit or current_time - latest_transfer_time > timedelta(hours=24):
+                    return earliest_transfer_time
+
             except json.JSONDecodeError as e:
                 if debug:
                     print(f"JSON decode error: {e}")
@@ -79,23 +79,32 @@ def get_holder_transfers(holder_address, current_time, debug=False):
                 print(f"Error: {response.status_code} - {response.text}")
             break
 
-    return transfers
 
-# Function to get the time of the first transfer
-def get_first_transfer_time(holder_address, current_time, debug=False):
-    transfers = get_holder_transfers(holder_address, current_time, debug)
-    if transfers == "SKIPPED":
-        return "SKIPPED"
-    if not transfers:
-        return None
+def check_holder(holder, debug=True) -> str:
+    current_time = datetime.now(timezone.utc)
+    blocktime = get_first_transfer_time(holder, current_time, debug)
+    if blocktime == "SKIPPED":
+        return f"{holder} - SKIPPED"
+    elif isinstance(blocktime, datetime):
+        time_diff = current_time - blocktime
+        is_within_24_hours = time_diff <= timedelta(hours=24)
+        status = "FRESH" if is_within_24_hours else "OLD"
+        hours_diff = time_diff.total_seconds() / 3600
 
-    first_transfer_time = min(transfer['blockTime'] for transfer in transfers)
-    return first_transfer_time
+        if debug:
+            print(
+                f"First transfer block time for holder {holder}: {blocktime} "
+                f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
+
+        return f"{holder} - {status}"
+    else:
+        return f"{holder} - UNKNOWN"
+
 
 # Function to process files and update the JSON based on transfer times
 def process_files_and_update_json(debug=False):
     coins_dir = 'coins'
-    current_time = datetime.now(timezone.utc)
+
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
             file_path = os.path.join(coins_dir, filename)
@@ -115,26 +124,15 @@ def process_files_and_update_json(debug=False):
 
             holders = coin_data.get('holders', [])
             updated_holders = []
-            total_holders = len(holders)
-            for index, holder in enumerate(holders, start=1):
-                if debug:
-                    print(f"Processing holder: {holder}")
-                blocktime = get_first_transfer_time(holder, current_time, debug)
-                if blocktime == "SKIPPED":
-                    updated_holders.append(f"{holder} - SKIPPED")
+            total_holders_count = len(holders)
+            print(f"Assessing {total_holders_count} holder wallet addresses..")
+
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
+                for index, holder in enumerate(holders, start=1):
                     if debug:
-                        print(f"{index}/{total_holders} - Holder {holder} skipped after {SKIP_THRESHOLD} transactions.")
-                elif blocktime:
-                    blocktime_dt = datetime.fromtimestamp(blocktime, tz=timezone.utc)
-                    time_diff = current_time - blocktime_dt
-                    is_within_24_hours = time_diff <= timedelta(hours=24)
-                    status = "FRESH" if is_within_24_hours else "OLD"
-                    hours_diff = time_diff.total_seconds() / 3600
-                    updated_holders.append(f"{holder} - {status}")
-                    if debug:
-                        print(f"{index}/{total_holders} - First transfer block time for holder {holder}: {blocktime} (within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
-                else:
-                    updated_holders.append(f"{holder} - UNKNOWN")
+                        print(f"Processing holder: {holder}")
+                    result = pool.map(check_holder, [holder])
+                    updated_holders.append(result)
 
             # Update the holders in the original JSON data
             coin_data['holders'] = updated_holders

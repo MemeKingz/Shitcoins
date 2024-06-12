@@ -2,10 +2,10 @@ import json
 import os
 import asyncio
 from time import sleep
-from scrapePumpFun import MintAddressFetcher
-from getHolders import get_holders
-from checkHolderTransfers import process_files_and_update_json
-from telegramAlert import alert
+from scrape_pump_fun import MintAddressFetcher
+from get_holders import get_holders
+from check_holder_transfers import process_files_and_update_json
+from telegram_alert import alert
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
