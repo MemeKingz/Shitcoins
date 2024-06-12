@@ -20,7 +20,7 @@ def send_telegram_message(message, bot_token, chat_id):
     response = requests.post(url, data=payload)
     return response
 
-# Function to calculate fresh percentage and send Telegram alerts
+# Function to calculate fresh and skipped percentages and send Telegram alerts
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
@@ -42,11 +42,14 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if ' - FRESH' in holder)
+            skipped_addresses = sum(1 for holder in holders if ' - SKIPPED' in holder)
             
             if total_addresses == 0:
                 percent_fresh = 0
+                percent_skipped = 0
             else:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
+                percent_skipped = (skipped_addresses / total_addresses) * 100
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
@@ -56,7 +59,9 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f'Coin address: \n\n{coin_address}\n\n'
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
-                f'Percentage of fresh addresses: {percent_fresh:.2f}%'
+                f'Skipped addresses: {skipped_addresses}\n'
+                f'Percentage of fresh addresses: {percent_fresh:.2f}%\n'
+                f'Percentage of skipped addresses: {percent_skipped:.2f}%'
             )
 
             print(message)
@@ -67,3 +72,6 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 response = send_telegram_message(message, bot_token, chat_id)
                 if debug:
                     print(f'Telegram response: {response.text}')
+
+# Example usage
+alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID, debug=True)

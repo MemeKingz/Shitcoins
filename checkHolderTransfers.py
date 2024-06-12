@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
+SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
 
 if not API_KEY:
     raise ValueError("API key not found. Please set it in the .env file.")
@@ -30,7 +31,14 @@ def get_holder_transfers(holder_address, current_time, debug=False):
     limit = 50
     transfers = []
     last_tx_hash = ""
+    total_transactions = 0
+
     while True:
+        if total_transactions >= SKIP_THRESHOLD:
+            if debug:
+                print(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_address}, skipping.")
+            return "SKIPPED"
+
         url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_address}&limit={limit}"
         if last_tx_hash:
             url += f"&beforeHash={last_tx_hash}"
@@ -49,6 +57,8 @@ def get_holder_transfers(holder_address, current_time, debug=False):
                 data = response.json()
                 if not data:
                     break
+
+                total_transactions += len(data)
 
                 # Check if the first transaction in the batch is older than 24 hours
                 first_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
@@ -74,6 +84,8 @@ def get_holder_transfers(holder_address, current_time, debug=False):
 # Function to get the time of the first transfer
 def get_first_transfer_time(holder_address, current_time, debug=False):
     transfers = get_holder_transfers(holder_address, current_time, debug)
+    if transfers == "SKIPPED":
+        return "SKIPPED"
     if not transfers:
         return None
 
@@ -108,7 +120,11 @@ def process_files_and_update_json(debug=False):
                 if debug:
                     print(f"Processing holder: {holder}")
                 blocktime = get_first_transfer_time(holder, current_time, debug)
-                if blocktime:
+                if blocktime == "SKIPPED":
+                    updated_holders.append(f"{holder} - SKIPPED")
+                    if debug:
+                        print(f"{index}/{total_holders} - Holder {holder} skipped after 200 transactions.")
+                elif blocktime:
                     blocktime_dt = datetime.fromtimestamp(blocktime, tz=timezone.utc)
                     time_diff = current_time - blocktime_dt
                     is_within_24_hours = time_diff <= timedelta(hours=24)

@@ -40,8 +40,10 @@ async def main():
         process_files_and_update_json(debug=True)
         alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
         
+        for file in os.listdir('coins'):
+            if file.endswith('.json'):
+                os.remove(os.path.join('coins', file))
 
-        
         print("Iteration complete. Waiting for next run.")
         
         sleep(LOOP_DELAY)
