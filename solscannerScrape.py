@@ -10,7 +10,7 @@ import re
 load_dotenv()
 
 MAX_PAGE = int(os.getenv("MAX_PAGE"))
-SLEEP_TIME = float(os.getenv("SLEEP_TIME"))
+SLEEP_TIME = float(os.getenv("SOL_SLEEP_TIME"))
 
 # Define a pattern for Solana addresses
 solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{44}$")

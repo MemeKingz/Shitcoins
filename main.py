@@ -3,6 +3,15 @@ import os
 import asyncio
 from scrapePumpFun import MintAddressFetcher
 from solscannerScrape import scrape_solscan
+from checkHolderTransfers import process_files
+from telegramAlert import alert
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+CHAT_ID = os.getenv('CHAT_ID')
+
 
 async def main():
     if not os.path.exists('coins'):
@@ -26,7 +35,8 @@ async def main():
             print(f"Saved {address} with {len(holder_addresses)} addresses.")
         else:
             print(f"Skipped {address} with only {len(holder_addresses)} addresses.")
-    
+    process_files(debug=True)
+    alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
     print("goodbye")
 
 if __name__ == "__main__":
