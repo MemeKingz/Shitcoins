@@ -1,0 +1,68 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+import os
+from dotenv import load_dotenv
+import re
+
+load_dotenv()
+
+MAX_PAGE = int(os.getenv("MAX_PAGE"))
+SLEEP_TIME = float(os.getenv("SOL_SLEEP_TIME"))
+
+# Define a pattern for Solana addresses
+solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{44}$")
+
+def is_valid_solana_address(address):
+    """Check if the address matches the Solana address pattern."""
+    return bool(solana_address_pattern.match(address))
+
+def scrape_solscan(tokenAddress, debug=False):
+    base_url = "https://solscan.io/token/{tokenAddress}?page={page}#holders"
+    
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    
+    page = 1
+    account_addresses = []
+    
+    try:
+        while page <= MAX_PAGE:
+            formatted_url = base_url.format(tokenAddress=tokenAddress, page=page)
+            driver.get(formatted_url)
+            time.sleep(SLEEP_TIME)
+            
+            try:
+                table = driver.find_element(By.TAG_NAME, 'table')
+                rows = table.find_elements(By.TAG_NAME, 'tr')
+                if not rows or len(rows) == 1:
+                    break
+                
+                for row in rows[1:]:
+                    columns = row.find_elements(By.TAG_NAME, 'td')
+                    if columns and columns[1].text.strip():
+                        address = columns[1].text.strip()
+                        if is_valid_solana_address(address):
+                            account_addresses.append(address)
+                
+                print(f"Page {page} scraped. Total addresses: {len(account_addresses)}")
+                
+                page += 1
+            except IndexError:
+                print(f"No more addresses found on page {page}. Exiting.")
+                break
+        
+        if debug:
+            for address in account_addresses:
+                print(address)
+        
+        return account_addresses
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+    finally:
+        driver.quit()
+
+# Example usage for testing
+# scrape_solscan("579t4FvQQ6JsWtoGrAVHWSK6AgRcw3XBJGaDefVL92e1", debug=True)
