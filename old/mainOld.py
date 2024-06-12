@@ -1,6 +1,6 @@
 import json
 import os
-from scrapePumpFunOld import MintAddressFetcher
+from old.scrapePumpFunOld import MintAddressFetcher
 from solscannerScrape import scrape_solscan
 
 def main():

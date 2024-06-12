@@ -12,12 +12,9 @@ async def main():
     
     # Fetch pump addresses from Telegram
     pump_addresses = await fetcher.fetch_pump_addresses_from_telegram()
-    print(f"Fetched pump addresses: {pump_addresses}")  # Debugging statement
-    
     for address in pump_addresses:
         print(f"Getting holder address for {address}")
         holder_addresses = scrape_solscan(address)
-        print(f"Holder addresses for {address}: {holder_addresses}")  # Debugging statement
         
         if len(holder_addresses) >= 50:
             address_data = {

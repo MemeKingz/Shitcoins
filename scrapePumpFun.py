@@ -12,9 +12,6 @@ api_hash = os.getenv('API_HASH')
 phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
 
-client = TelegramClient('session_name', api_id, api_hash)
-
-
 class MintAddressFetcher:
     def __init__(self, seen_file='seen_addresses.json'):
         self.seen_file = seen_file
@@ -51,17 +48,11 @@ class MintAddressFetcher:
                         marketcap_str = line.split("$")[1].strip()
                         try:
                             marketcap = self.clean_marketcap(marketcap_str)
-                            print(f"Marketcap extracted: {marketcap}")  # Debugging statement
                         except ValueError:
-                            print(f"Failed to clean marketcap: {marketcap_str}")  # Debugging statement
                             continue
                 if address and marketcap:
-                    print(f"Address: {address}, Marketcap: {marketcap}")  # Debugging statement
                     if marketcap_min <= marketcap <= marketcap_max:
                         addresses.append(address)
-                        print(f"Added address: {address} with marketcap: {marketcap}")  # Debugging statement
-                    else:
-                        print(f"Skipped address: {address} with marketcap: {marketcap}")  # Debugging statement
 
         new_addresses = [address for address in addresses if address not in self.seen_addresses]
         self.seen_addresses.extend(new_addresses)
@@ -71,8 +62,5 @@ class MintAddressFetcher:
         return new_addresses
 
     def clean_marketcap(self, marketcap_str):
-        # Remove non-numeric characters except for the decimal point
         cleaned_str = re.sub(r'[^\d.]', '', marketcap_str)
         return float(cleaned_str)
-
-
