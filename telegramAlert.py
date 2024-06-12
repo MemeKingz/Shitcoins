@@ -72,6 +72,3 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 response = send_telegram_message(message, bot_token, chat_id)
                 if debug:
                     print(f'Telegram response: {response.text}')
-
-# Example usage
-alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID, debug=True)

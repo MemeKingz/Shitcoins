@@ -148,6 +148,3 @@ def process_files_and_update_json(debug=False):
             except Exception as e:
                 if debug:
                     print(f"Error writing file: {file_path}, Error: {e}")
-
-# Example usage
-process_files_and_update_json(debug=True)
