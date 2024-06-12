@@ -123,7 +123,7 @@ def process_files_and_update_json(debug=False):
                 if blocktime == "SKIPPED":
                     updated_holders.append(f"{holder} - SKIPPED")
                     if debug:
-                        print(f"{index}/{total_holders} - Holder {holder} skipped after 200 transactions.")
+                        print(f"{index}/{total_holders} - Holder {holder} skipped after {SKIP_THRESHOLD} transactions.")
                 elif blocktime:
                     blocktime_dt = datetime.fromtimestamp(blocktime, tz=timezone.utc)
                     time_diff = current_time - blocktime_dt
