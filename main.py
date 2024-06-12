@@ -3,8 +3,8 @@ import os
 import asyncio
 from time import sleep
 from scrapePumpFun import MintAddressFetcher
-from solscannerScrape import scrape_solscan
-from checkHolderTransfers import process_files
+from getHolders import get_holders
+from checkHolderTransfers import process_files_and_update_json
 from telegramAlert import alert
 from dotenv import load_dotenv
 
@@ -24,7 +24,7 @@ async def main():
         pump_addresses = await fetcher.fetch_pump_addresses_from_telegram()
         for address in pump_addresses:
             print(f"Getting holder addresses for {address}")
-            holder_addresses = scrape_solscan(address)
+            holder_addresses = get_holders(address)
             
             if len(holder_addresses) >= 50:
                 address_data = {
@@ -37,8 +37,11 @@ async def main():
             else:
                 print(f"Skipped {address} with only {len(holder_addresses)} addresses.")
         
-        process_files(debug=True)
+        process_files_and_update_json(debug=True)
         alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID)
+        
+
+        
         print("Iteration complete. Waiting for next run.")
         
         sleep(LOOP_DELAY)

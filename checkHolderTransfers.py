@@ -1,92 +1,89 @@
+import requests
+from dotenv import load_dotenv
 import os
 import json
-import time
-from datetime import datetime, timedelta
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
-from dotenv import load_dotenv
+import re
+from datetime import datetime, timedelta, timezone
 
 # Load environment variables from .env file
 load_dotenv()
-HOLDER_SLEEP_TIME = float(os.getenv('HOLDER_SLEEP_TIME'))
-HOLDER_NEXT_PAGE_SLEEP_TIME = float(os.getenv('HOLDER_NEXT_PAGE_SLEEP_TIME'))
 
+API_KEY = os.getenv('SOLSCAN_API_KEY')
 
-# Function to parse time string from the webpage
-def parse_time(time_str):
-    parts = time_str.split()
-    if "minute" in time_str:
-        minutes = int(parts[0]) if parts[0].isdigit() else int(parts[1])
-        return datetime.now() - timedelta(minutes=minutes)
-    elif "hour" in time_str:
-        hours = int(parts[0]) if parts[0].isdigit() else int(parts[1])
-        return datetime.now() - timedelta(hours=hours)
-    elif "day" in time_str:
-        days = int(parts[0]) if parts[0].isdigit() else int(parts[1])
-        return datetime.now() - timedelta(days=days)
-    elif "month" in time_str:
-        months = int(parts[0]) if parts[0].isdigit() else int(parts[1])
-        return datetime.now() - timedelta(days=months * 30)
-    elif "year" in time_str:
-        years = int(parts[0]) if parts[0].isdigit() else int(parts[1])
-        return datetime.now() - timedelta(days=years * 365)
-    else:
-        return datetime.now()  # Fallback to current time if parsing fails
+if not API_KEY:
+    raise ValueError("API key not found. Please set it in the .env file.")
 
-# Function to scrape Solscan for a given holder address
-def check_holder_transfers(holder_address, debug=False):
-    base_url = f"https://solscan.io/account/{holder_address}#transfers"
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-    wait = WebDriverWait(driver, 10)  # Initialize WebDriverWait
+# Define a pattern for Solana addresses
+solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{32,44}$")
 
-    try:
-        driver.get(base_url)
+def is_valid_solana_address(address):
+    """Check if the address matches the Solana address pattern."""
+    return bool(solana_address_pattern.match(address))
+
+# Function to get transfer data for a given holder address
+def get_holder_transfers(holder_address, current_time, debug=False):
+    if not is_valid_solana_address(holder_address):
         if debug:
-            print(f"Navigating to {base_url}")
-        # Wait for the page to load
-        time.sleep(HOLDER_SLEEP_TIME) 
+            print(f"Invalid Solana address: {holder_address}")
+        return []
 
-        # Automate some clicks and scrolling
-        try:
-            driver.execute_script("window.scrollBy(0, 1000);")
-            time.sleep(0.3)  # Wait to ensure scrolling takes effect
+    limit = 50
+    transfers = []
+    last_tx_hash = ""
+    while True:
+        url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_address}&limit={limit}"
+        if last_tx_hash:
+            url += f"&beforeHash={last_tx_hash}"
+        headers = {
+            'accept': 'application/json',
+            'token': API_KEY
+        }
 
-            # Wait for the button to be clickable and then click
-            button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.rounded-md:nth-child(5)')))
-            button.click()
+        response = requests.get(url, headers=headers)
 
-            time.sleep(HOLDER_NEXT_PAGE_SLEEP_TIME)
+        if debug:
+            print(f"Response status code: {response.status_code}")
 
-            table = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
-            rows = table.find_elements(By.TAG_NAME, 'tr')
-            if not rows or len(rows) == 1:
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                if not data:
+                    break
+
+                # Check if the first transaction in the batch is older than 24 hours
+                first_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
+                if current_time - first_transfer_time > timedelta(hours=24):
+                    break
+
+                transfers.extend([{'blockTime': tx['blockTime']} for tx in data if 'blockTime' in tx])
+                last_tx_hash = data[-1]['txHash']
+
+                if len(data) < limit:
+                    break
+            except json.JSONDecodeError as e:
                 if debug:
-                    print("No transfers found or only header row present.")
-                return None
-
-            last_row = rows[-1]
-            columns = last_row.find_elements(By.TAG_NAME, 'td')
-            time_of_transfer = columns[2].text.strip()
-
+                    print(f"JSON decode error: {e}")
+                break
+        else:
             if debug:
-                print(f"Last transfer time: {time_of_transfer}")
+                print(f"Error: {response.status_code} - {response.text}")
+            break
 
-            return parse_time(time_of_transfer)
+    return transfers
 
-        except Exception as e:
-            if debug:
-                print(f"Error during automation: {e}")
-            return None
-    finally:
-        driver.quit()
+# Function to get the time of the first transfer
+def get_first_transfer_time(holder_address, current_time, debug=False):
+    transfers = get_holder_transfers(holder_address, current_time, debug)
+    if not transfers:
+        return None
 
-# Function to process files and update JSON based on transfer times
-def process_files(debug=False):
+    first_transfer_time = min(transfer['blockTime'] for transfer in transfers)
+    return first_transfer_time
+
+# Function to process files and update the JSON based on transfer times
+def process_files_and_update_json(debug=False):
     coins_dir = 'coins'
+    current_time = datetime.now(timezone.utc)
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
             file_path = os.path.join(coins_dir, filename)
@@ -106,32 +103,35 @@ def process_files(debug=False):
 
             holders = coin_data.get('holders', [])
             updated_holders = []
-
-            for holder in holders:
+            total_holders = len(holders)
+            for index, holder in enumerate(holders, start=1):
                 if debug:
                     print(f"Processing holder: {holder}")
-                transfer_time = check_holder_transfers(holder, debug)
-
-                if transfer_time:
-                    if transfer_time < datetime.now() - timedelta(days=1):
-                        updated_holders.append(f"{holder} - OLD")
-                    else:
-                        updated_holders.append(f"{holder} - FRESH")
+                blocktime = get_first_transfer_time(holder, current_time, debug)
+                if blocktime:
+                    blocktime_dt = datetime.fromtimestamp(blocktime, tz=timezone.utc)
+                    time_diff = current_time - blocktime_dt
+                    is_within_24_hours = time_diff <= timedelta(hours=24)
+                    status = "FRESH" if is_within_24_hours else "OLD"
+                    hours_diff = time_diff.total_seconds() / 3600
+                    updated_holders.append(f"{holder} - {status}")
+                    if debug:
+                        print(f"{index}/{total_holders} - First transfer block time for holder {holder}: {blocktime} (within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
                 else:
                     updated_holders.append(f"{holder} - UNKNOWN")
 
-            if debug:
-                print(f"Original holders: {holders}")
-                print(f"Updated holders: {updated_holders}")
-
+            # Update the holders in the original JSON data
             coin_data['holders'] = updated_holders
 
+            # Write the updated data back to the JSON file
             try:
                 with open(file_path, 'w') as file:
                     json.dump(coin_data, file, indent=4)
                 if debug:
-                    print(f"Successfully updated the file: {file_path}")
                     print(f"Updated JSON data: {coin_data}")
             except Exception as e:
                 if debug:
-                    print(f"Error writing to file: {file_path}, Error: {e}")
+                    print(f"Error writing file: {file_path}, Error: {e}")
+
+# Example usage
+process_files_and_update_json(debug=True)

@@ -52,7 +52,6 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             coin_address = os.path.splitext(filename)[0]
 
             message = (
-                f'TEST ALERT\n'
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
                 f'Analyzed addresses: {total_addresses}\n'
@@ -68,6 +67,3 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 response = send_telegram_message(message, bot_token, chat_id)
                 if debug:
                     print(f'Telegram response: {response.text}')
-
-
-alert(bot_token=BOT_TOKEN, chat_id=CHAT_ID)

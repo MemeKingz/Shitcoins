@@ -1,7 +1,7 @@
 import json
 import os
 from old.scrapePumpFunOld import MintAddressFetcher
-from solscannerScrape import scrape_solscan
+from getHolders import scrape_solscan
 
 def main():
     # Ensure the 'coins' directory exists
