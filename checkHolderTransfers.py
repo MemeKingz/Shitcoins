@@ -8,6 +8,13 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+HOLDER_SLEEP_TIME = float(os.getenv('HOLDER_SLEEP_TIME'))
+HOLDER_NEXT_PAGE_SLEEP_TIME = float(os.getenv('HOLDER_NEXT_PAGE_SLEEP_TIME'))
+
 
 # Function to parse time string from the webpage
 def parse_time(time_str):
@@ -41,7 +48,7 @@ def check_holder_transfers(holder_address, debug=False):
         if debug:
             print(f"Navigating to {base_url}")
         # Wait for the page to load
-        time.sleep(3.5)
+        time.sleep(HOLDER_SLEEP_TIME) 
 
         # Automate some clicks and scrolling
         try:
@@ -52,10 +59,8 @@ def check_holder_transfers(holder_address, debug=False):
             button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.rounded-md:nth-child(5)')))
             button.click()
 
-            # Wait for 5 seconds
-            time.sleep(1.1)
+            time.sleep(HOLDER_NEXT_PAGE_SLEEP_TIME)
 
-            # Extract the table data
             table = wait.until(EC.presence_of_element_located((By.TAG_NAME, 'table')))
             rows = table.find_elements(By.TAG_NAME, 'tr')
             if not rows or len(rows) == 1:
@@ -63,12 +68,10 @@ def check_holder_transfers(holder_address, debug=False):
                     print("No transfers found or only header row present.")
                 return None
 
-            # Extract time from the last row and print it
             last_row = rows[-1]
             columns = last_row.find_elements(By.TAG_NAME, 'td')
             time_of_transfer = columns[2].text.strip()
 
-            # Print the extracted time
             if debug:
                 print(f"Last transfer time: {time_of_transfer}")
 
