@@ -1,4 +1,4 @@
-from telethon import TelegramClient, events
+from telethon import TelegramClient
 import re
 import os
 import json
@@ -11,6 +11,7 @@ api_id = int(os.getenv('API_ID'))
 api_hash = os.getenv('API_HASH')
 phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
+
 
 class MintAddressFetcher:
     def __init__(self, seen_file='seen_addresses.json'):

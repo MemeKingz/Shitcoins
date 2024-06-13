@@ -1,5 +1,8 @@
+import logging
 import multiprocessing
 
+import psycopg2
+import psycopg2.extras
 import requests
 from dotenv import load_dotenv
 import os
@@ -8,6 +11,9 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from shitcoins.coin_data import CoinData
+from shitcoins.database.table.wallet_repository import WalletRepository
+
+LOGGER = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -28,10 +34,10 @@ def is_valid_solana_address(address):
 
 
 # Function to determine if holder should be SKIPPED, IGNORED or INCLUDED with earliest transfer time
-def get_first_transfer_time(holder_address, current_time, debug=False) -> str | datetime | None:
+def get_first_transfer_time(holder_address: str,
+                            current_time: datetime) -> str | datetime | None:
     if not is_valid_solana_address(holder_address):
-        if debug:
-            print(f"Invalid Solana address: {holder_address}")
+        LOGGER.info(f"Invalid Solana address: {holder_address}")
         return
 
     limit = 50
@@ -40,8 +46,7 @@ def get_first_transfer_time(holder_address, current_time, debug=False) -> str | 
 
     while True:
         if total_transactions >= SKIP_THRESHOLD:
-            if debug:
-                print(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_address}, skipping.")
+            LOGGER.info(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_address}, skipping.")
             return "SKIPPED"
 
         url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_address}&limit={limit}"
@@ -53,9 +58,7 @@ def get_first_transfer_time(holder_address, current_time, debug=False) -> str | 
         }
 
         response = requests.get(url, headers=headers)
-
-        if debug:
-            print(f"Response status code: {response.status_code}")
+        LOGGER.debug(f"Response status code: {response.status_code}")
 
         if response.status_code == 200:
             try:
@@ -73,41 +76,57 @@ def get_first_transfer_time(holder_address, current_time, debug=False) -> str | 
                     return earliest_transfer_time
 
             except json.JSONDecodeError as e:
-                if debug:
-                    print(f"JSON decode error: {e}")
+                LOGGER.error(f"JSON decode error: {e}")
                 break
         else:
-            if debug:
-                print(f"Error: {response.status_code} - {response.text}")
+            LOGGER.error(f"Error: {response.status_code} - {response.text}")
             break
 
 
-def check_holder(holder, debug=True) -> str:
-    if debug:
-        print(f"Processing holder: {holder}")
+def check_holder(holder) -> str:
+    LOGGER.info(f"Processing holder: {holder}")
+
+    wallet_repo = None
+    if os.getenv('RUN_WITH_DB').lower() == 'true':
+        # Connect to your postgres DB
+        conn = psycopg2.connect(
+            database='shitcoins', user='bottas', host='localhost', port='5333'
+        )
+        conn.autocommit = True
+        wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+        # check if exists in database, if so return early
+        wallet_entry = wallet_repo.get_wallet_entry(holder)
+        if wallet_entry is not None:
+            return f"{holder} - {wallet_entry['status']}"
 
     current_time = datetime.now(timezone.utc)
-    blocktime = get_first_transfer_time(holder, current_time, debug)
+    blocktime = get_first_transfer_time(holder, current_time)
+    return_holder_status = f"{holder} - UNKNOWN"
+    status = "UNKNOWN"
+
     if blocktime == "SKIPPED":
-        return f"{holder} - SKIPPED"
+        return_holder_status = f"{holder} - SKIPPED"
     elif isinstance(blocktime, datetime):
         time_diff = current_time - blocktime
         is_within_24_hours = time_diff <= timedelta(hours=24)
         status = "FRESH" if is_within_24_hours else "OLD"
+
         hours_diff = time_diff.total_seconds() / 3600
 
-        if debug:
-            print(
-                f"First transfer block time for holder {holder}: {blocktime} "
-                f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
+        LOGGER.info(f"First transfer block time for holder {holder}: {blocktime} "
+                    f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
 
-        return f"{holder} - {status}"
-    else:
-        return f"{holder} - UNKNOWN"
+        return_holder_status = f"{holder} - {status}"
+
+    if status != "FRESH" and wallet_repo is not None:
+        wallet_repo.insert_new_wallet_entry(holder, status)
+
+    return return_holder_status
 
 
 # Function to process files and update the JSON based on transfer times
-def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> CoinData:
+def multiprocess_coin_holders(pump_address: str,
+                              holder_addresses: [str]) -> CoinData:
     total_holders_count = len(holder_addresses)
     print(f"Assessing {total_holders_count} holder wallet addresses..")
 

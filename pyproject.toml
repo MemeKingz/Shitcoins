@@ -13,12 +13,13 @@ requires = [
 build-backend = "setuptools.build_meta"
 [project]
 name = "shitcoins"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
     "telethon>=1.36.0",
     "python-dotenv>=1.0.1",
     "requests>=2.32.2",
-    ""
+    "psycopg2-binary>=2.9.9",
+    "flake8>=3.7.0"
 ]
 
 [project.optional-dependencies]
