@@ -81,6 +81,9 @@ def get_first_transfer_time(holder_address, current_time, debug=False) -> str | 
 
 
 def check_holder(holder, debug=True) -> str:
+    if debug:
+        print(f"Processing holder: {holder}")
+
     current_time = datetime.now(timezone.utc)
     blocktime = get_first_transfer_time(holder, current_time, debug)
     if blocktime == "SKIPPED":
@@ -123,16 +126,11 @@ def process_files_and_update_json(debug=False):
                 continue
 
             holders = coin_data.get('holders', [])
-            updated_holders = []
             total_holders_count = len(holders)
             print(f"Assessing {total_holders_count} holder wallet addresses..")
 
             with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
-                for index, holder in enumerate(holders, start=1):
-                    if debug:
-                        print(f"Processing holder: {holder}")
-                    result = pool.map(check_holder, [holder])
-                    updated_holders.append(result)
+                updated_holders = pool.map(check_holder, holders)
 
             # Update the holders in the original JSON data
             coin_data['holders'] = updated_holders

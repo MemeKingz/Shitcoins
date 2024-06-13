@@ -9,6 +9,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 SEND_PERCENT_THRESHOLD = float(os.getenv('SEND_PERCENT_THRESHOLD'))
 
+
 # Function to send message to Telegram
 def send_telegram_message(message, bot_token, chat_id):
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
@@ -20,12 +21,13 @@ def send_telegram_message(message, bot_token, chat_id):
     response = requests.post(url, data=payload)
     return response
 
+
 # Function to calculate fresh and skipped percentages and send Telegram alerts
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
             file_path = os.path.join(coins_dir, filename)
-            
+
             if debug:
                 print(f'Processing file: {file_path}')
 
@@ -43,7 +45,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if ' - FRESH' in holder)
             skipped_addresses = sum(1 for holder in holders if ' - SKIPPED' in holder)
-            
+
             if total_addresses == 0:
                 percent_fresh = 0
                 percent_skipped = 0
