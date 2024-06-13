@@ -5,3 +5,4 @@ __pycache__/
 seen_addresses.json
 .env
 old/
+venv/
