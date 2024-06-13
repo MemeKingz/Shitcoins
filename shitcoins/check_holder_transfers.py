@@ -7,6 +7,8 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 
+from shitcoins.coin_data import CoinData
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -105,42 +107,13 @@ def check_holder(holder, debug=True) -> str:
 
 
 # Function to process files and update the JSON based on transfer times
-def process_files_and_update_json(debug=False):
-    coins_dir = 'coins'
+def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> CoinData:
+    total_holders_count = len(holder_addresses)
+    print(f"Assessing {total_holders_count} holder wallet addresses..")
 
-    for filename in os.listdir(coins_dir):
-        if filename.endswith('.json'):
-            file_path = os.path.join(coins_dir, filename)
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
+        updated_holders = pool.map(check_holder, holder_addresses)
 
-            if debug:
-                print(f"Processing file: {file_path}")
-
-            try:
-                with open(file_path, 'r') as file:
-                    coin_data = json.load(file)
-                if debug:
-                    print(f"Original JSON data: {coin_data}")
-            except Exception as e:
-                if debug:
-                    print(f"Error reading file: {file_path}, Error: {e}")
-                continue
-
-            holders = coin_data.get('holders', [])
-            total_holders_count = len(holders)
-            print(f"Assessing {total_holders_count} holder wallet addresses..")
-
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
-                updated_holders = pool.map(check_holder, holders)
-
-            # Update the holders in the original JSON data
-            coin_data['holders'] = updated_holders
-
-            # Write the updated data back to the JSON file
-            try:
-                with open(file_path, 'w') as file:
-                    json.dump(coin_data, file, indent=4)
-                if debug:
-                    print(f"Updated JSON data: {coin_data}")
-            except Exception as e:
-                if debug:
-                    print(f"Error writing file: {file_path}, Error: {e}")
+    # Update the holders in the original JSON data
+    coin_data = {'coin_address': pump_address, 'holders': updated_holders}
+    return coin_data
