@@ -13,3 +13,5 @@ pip install --upgrade pip
 
 pip install bump2version
 pip install -e .
+pip install telethon
+pip install python-dotenv
