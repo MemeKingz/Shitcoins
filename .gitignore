@@ -6,3 +6,8 @@ seen_addresses.json
 .env
 old/
 venv/
+shitcoins.egg-info/dependency_links.txt
+shitcoins.egg-info/PKG-INFO
+shitcoins.egg-info/requires.txt
+shitcoins.egg-info/SOURCES.txt
+shitcoins.egg-info/top_level.txt
