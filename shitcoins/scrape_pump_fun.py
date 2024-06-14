@@ -11,6 +11,8 @@ api_id = int(os.getenv('API_ID'))
 api_hash = os.getenv('API_HASH')
 phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
+MIN_MARKET_CAP = int(os.getenv('MIN_MARKET_CAP'))
+MAX_MARKET_CAP = int(os.getenv('MAX_MARKET_CAP'))
 
 
 class MintAddressFetcher:
@@ -29,7 +31,7 @@ class MintAddressFetcher:
         with open(self.seen_file, 'w') as file:
             json.dump(self.seen_addresses, file)
 
-    async def fetch_pump_addresses_from_telegram(self, limit=100, marketcap_min=20000, marketcap_max=300000):
+    async def fetch_pump_addresses_from_telegram(self, limit=100):
         await self.telegram_client.start(phone)
 
         addresses = []
@@ -52,7 +54,7 @@ class MintAddressFetcher:
                         except ValueError:
                             continue
                 if address and marketcap:
-                    if marketcap_min <= marketcap <= marketcap_max:
+                    if MIN_MARKET_CAP <= marketcap <= MAX_MARKET_CAP:
                         addresses.append(address)
 
         new_addresses = [address for address in addresses if address not in self.seen_addresses]
