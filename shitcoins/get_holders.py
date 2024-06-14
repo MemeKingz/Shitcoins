@@ -5,9 +5,11 @@ import re
 
 # Load environment variables from .env file
 load_dotenv()
+MIN_HOLDER_COUNT = int(os.getenv('MIN_HOLDER_COUNT'))
 
 # Define a pattern for Solana addresses
 solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{44}$")
+
 
 def is_valid_solana_address(address):
     """Check if the address matches the Solana address pattern."""
@@ -21,9 +23,11 @@ def get_holders(token_address):
     holder_addresses = []
     page = 0
     limit = 50  # Adjust the limit as per the API's pagination limit
+    min_holders_required = MIN_HOLDER_COUNT
 
     while True:
-        url = f"https://pro-api.solscan.io/v1.0/token/holders?tokenAddress={token_address}&limit={limit}&offset={page * limit}"
+        url = (f"https://pro-api.solscan.io/v1.0/token/holders?tokenAddress={token_address}&limit={limit}"
+               f"&offset={page * limit}")
         headers = {
             'accept': 'application/json',
             'token': api_key
@@ -43,4 +47,9 @@ def get_holders(token_address):
             print(f"Error: {response.status_code} - {response.text}")
             break
 
+    if len(holder_addresses) < min_holders_required:
+        print(f"Token {token_address} has less than {min_holders_required} holders.")
+        return []
+
     return holder_addresses
+

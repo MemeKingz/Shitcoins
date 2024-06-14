@@ -11,3 +11,6 @@ shitcoins.egg-info/PKG-INFO
 shitcoins.egg-info/requires.txt
 shitcoins.egg-info/SOURCES.txt
 shitcoins.egg-info/top_level.txt
+
+venv/
+shitcoins.egg-info
