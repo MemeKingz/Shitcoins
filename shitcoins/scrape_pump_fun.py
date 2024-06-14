@@ -13,6 +13,7 @@ phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
 MIN_MARKET_CAP = int(os.getenv('MIN_MARKET_CAP'))
 MAX_MARKET_CAP = int(os.getenv('MAX_MARKET_CAP'))
+FETCH_LIMIT = int(os.getenv('FETCH_LIMIT'))
 
 
 class MintAddressFetcher:
@@ -31,12 +32,12 @@ class MintAddressFetcher:
         with open(self.seen_file, 'w') as file:
             json.dump(self.seen_addresses, file)
 
-    async def fetch_pump_addresses_from_telegram(self, limit=100):
+    async def fetch_pump_addresses_from_telegram(self):
         await self.telegram_client.start(phone)
 
         addresses = []
 
-        async for message in self.telegram_client.iter_messages(channel_username, limit=limit):
+        async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
             text = message.text
             if text and "NEW CURVE COMPLETED" in text:
                 lines = text.split('\n')
