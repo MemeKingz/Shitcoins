@@ -20,5 +20,5 @@ Instantiate a postgres docker instance with (in the docker directory):
 ### How to check database records
 Might need to make docker run sudoless
 `docker exec -it <container name> sh`
-`psql —user bottas -d shitcoins`
+`psql -U bottas -d shitcoins`
 `Select count(*) from wallet;` or `Select * from wallet;`
