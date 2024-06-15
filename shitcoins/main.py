@@ -2,7 +2,6 @@ import json
 import os
 import asyncio
 from time import sleep
-from concurrent.futures import ProcessPoolExecutor
 
 from scrape_pump_fun import MintAddressFetcher
 from get_holders import get_holders
@@ -10,11 +9,11 @@ from check_holder_transfers import multiprocess_coin_holders
 from telegram_alert import alert
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 LOOP_DELAY = int(os.getenv('LOOP_DELAY'))
+
 
 async def main():
     if not os.path.exists('coins'):
@@ -39,12 +38,8 @@ async def main():
             else:
                 print(f"Skipped {pump_address} with only {len(holder_addresses)} addresses.")
 
-            # Using ProcessPoolExecutor for parallel processing
-            with ProcessPoolExecutor() as executor:
-                coin_data_with_updated_holders = await asyncio.get_event_loop().run_in_executor(
-                    executor, multiprocess_coin_holders, pump_address, holder_addresses)
+            coin_data_with_updated_holders = multiprocess_coin_holders(pump_address, holder_addresses)
 
-            # Write the updated data back to the JSON file
             with open(f'coins/{pump_address}.json', 'w') as json_file:
                 try:
                     json.dump(coin_data_with_updated_holders, json_file, indent=4)
@@ -59,7 +54,8 @@ async def main():
                 os.remove(os.path.join('coins', file))
 
         print("Iteration complete. Waiting for next run.")
-        await asyncio.sleep(LOOP_DELAY)
+
+        sleep(LOOP_DELAY)
 
 
 if __name__ == "__main__":

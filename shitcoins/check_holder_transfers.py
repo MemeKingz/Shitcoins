@@ -18,6 +18,7 @@ load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
 SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
+RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
 MIN_HOLDERS_COUNT = 50
 
 if not API_KEY:
@@ -124,11 +125,11 @@ def check_holder(holder) -> str:
 
 
 def check_holder_with_counter(args):
-    holder, counter, lock, total_holders = args
+    holder, counter, lock, total_holders_count = args
     result = check_holder(holder)
     with lock:
         counter.value += 1
-        print(f"Processed {counter.value} of {total_holders}")
+        print(f"Processed {counter.value} of {total_holders_count}")
     return result
 
 
@@ -143,12 +144,11 @@ def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> Coi
     manager = multiprocessing.Manager()
     counter = manager.Value('i', 0)
     lock = manager.Lock()
-    total_holders = total_holders_count
 
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - RESERVED_CPUS) as pool:
         results = []
         for holder in holder_addresses:
-            result = pool.apply_async(check_holder_with_counter, args=((holder, counter, lock, total_holders),))
+            result = pool.apply_async(check_holder_with_counter, args=((holder, counter, lock, total_holders_count),))
             results.append(result)
         updated_holders = [res.get() for res in results]
 
@@ -157,7 +157,7 @@ def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> Coi
     # Calculate and save average transactions asynchronously
     fresh_holders = [holder for holder in updated_holders if ' - FRESH' in holder]
     if fresh_holders:
-        asyncio.run(calculate_and_save_average_transactions(fresh_holders))
+        asyncio.create_task(calculate_and_save_average_transactions(fresh_holders))
 
     return coin_data
 
@@ -196,4 +196,3 @@ async def calculate_and_save_average_transactions(fresh_holders: [str], filename
         file.write(f"Total Fresh Wallets: {combined_count}\n")
 
     print(f"Average transactions for fresh wallets: {combined_avg:.2f}")
-
