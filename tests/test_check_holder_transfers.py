@@ -40,7 +40,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         """
         os.environ['RUN_WITH_DB'] = 'true'
 
-        # check items are in db as expected
+        # check items are in db as
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
 
