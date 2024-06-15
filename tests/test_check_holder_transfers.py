@@ -20,9 +20,10 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.holder_addresses = [self.expected_holder_addr_unknown,
                                  self.expected_holder_addr_old2,
                                  self.expected_holder_addr_old]
-
+        os.environ['DB_USER'] = 'TestyMcTestfaceDB'
+        os.environ['DB_PORT'] = '5332'
         self.conn = psycopg2.connect(
-            database='shitcoins', user='bottas', host='localhost', port='5333'
+            database='shitcoins', user='TestyMcTestfaceDB', host='localhost', port='5332'
         )
         self.conn.autocommit = True
 
@@ -35,7 +36,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_added_to_db(self):
         """
-        This test requires a postgres instance running on 5333 with the correct db and user
+        This test requires a postgres instance running on 5332 with the correct db and user
         """
         os.environ['RUN_WITH_DB'] = 'true'
 
@@ -49,6 +50,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(f'{self.expected_holder_addr_old} - OLD', coin_data['holders'][2])
 
         holder_old = wallet_repo.get_wallet_entry(self.expected_holder_addr_old)
+        print(holder_old)
         self.assertEqual(self.expected_holder_addr_old, holder_old['address'])
         self.assertEqual('OLD', holder_old['status'])
 

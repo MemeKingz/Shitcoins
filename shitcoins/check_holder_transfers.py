@@ -90,9 +90,10 @@ def check_holder(holder) -> str:
     wallet_repo = None
     if os.getenv('RUN_WITH_DB').lower() == 'true':
         conn = psycopg2.connect(
-            database='shitcoins', user='bottas', host='localhost', port='5333'
+            database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
         )
         conn.autocommit = True
+        
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_entry = wallet_repo.get_wallet_entry(holder)
         if wallet_entry is not None:
