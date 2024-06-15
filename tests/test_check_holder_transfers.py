@@ -1,6 +1,5 @@
 import os
 import unittest
-from unittest.mock import patch
 
 import psycopg2
 import psycopg2.extras

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import multiprocessing
 
@@ -125,14 +127,13 @@ def check_holder(holder) -> str:
 
 
 # Function to process files and update the JSON based on transfer times
-def multiprocess_coin_holders(pump_address: str,
-                              holder_addresses: [str]) -> CoinData:
-    total_holders_count = len(holder_addresses)
+def multiprocess_coin_holders(coin_data: CoinData) -> CoinData:
+    total_holders_count = len(coin_data['holders'])
     print(f"Assessing {total_holders_count} holder wallet addresses..")
 
     with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
-        updated_holders = pool.map(check_holder, holder_addresses)
+        updated_holders = pool.map(check_holder, coin_data['holders'])
 
     # Update the holders in the original JSON data
-    coin_data = {'coin_address': pump_address, 'holders': updated_holders}
+    coin_data['holders'] = updated_holders
     return coin_data

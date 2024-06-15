@@ -59,6 +59,9 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             message = (
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
+                f"Market cap: ${coin_data['market_info']['market_cap']}\n"
+                f"Price: ${round(coin_data['market_info']['price'], 2)}\n"
+                f"Liquidity: ${round(coin_data['market_info']['liquidity'], 2)}\n"
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
                 f'Skipped addresses: {skipped_addresses}\n'
