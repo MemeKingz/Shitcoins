@@ -71,4 +71,17 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(3, len(coin_data['holders']))
 
+    def test_calculate_and_save_average_transactions(self):
+        fresh_holders = [
+            '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1 - FRESH - 5 transactions',
+            '369s8C1BTaMFRbyKtEfhjPV3d1N9t2VFV7Am3Q549Asi - FRESH - 10 transactions'
+        ]
 
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(calculate_and_save_average_transactions(fresh_holders, filename=self.filename))
+
+        with open(self.filename, "r") as file:
+            lines = file.readlines()
+            self.assertTrue("Average Transactions for a fresh wallet:\n" in lines[0])
+            self.assertTrue("Total Transactions: 15\n" in lines[1])
+            self.assertTrue("Total Fresh Wallets: 2\n" in lines[2])
