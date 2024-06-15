@@ -43,8 +43,8 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
-            fresh_addresses = sum(1 for holder in holders if ' - FRESH' in holder)
-            skipped_addresses = sum(1 for holder in holders if ' - SKIPPED' in holder)
+            fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
+            skipped_addresses = sum(1 for holder in holders if holder['status'] == 'SKIPPED')
 
             if total_addresses == 0:
                 percent_fresh = 0

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import requests
 import psycopg2
 import psycopg2.extras
-from shitcoins.coin_data import CoinData
+from shitcoins.coin_data import CoinData, Holder
 from shitcoins.database.table.wallet_repository import WalletRepository
 import asyncio
 
@@ -19,7 +19,8 @@ load_dotenv()
 API_KEY = os.getenv('SOLSCAN_API_KEY')
 SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
 RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
-MIN_HOLDERS_COUNT = 50
+
+#MIN_HOLDERS_COUNT = 50
 
 if not API_KEY:
     raise ValueError("API key not found. Please set it in the .env file.")
@@ -68,9 +69,9 @@ def get_first_transfer_time(holder_address: str, current_time: datetime) -> str 
                 earliest_transfer_time = datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
                 last_tx_hash = data[-1]['txHash']
 
-                if len(data) < limit or current_time - latest_transfer_time > timedelta(hours=24):
+                if (len(data) < limit or current_time - latest_transfer_time
+                        > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
                     return earliest_transfer_time, total_transactions
-
             except json.JSONDecodeError as e:
                 LOGGER.error(f"JSON decode error: {e}")
                 break
@@ -84,45 +85,48 @@ def get_first_transfer_time(holder_address: str, current_time: datetime) -> str 
     return None
 
 
-def check_holder(holder) -> str:
-    LOGGER.info(f"Processing holder: {holder}")
+def check_holder(holder_address) -> Holder:
+    LOGGER.info(f"Processing holder: {holder_address}")
 
     wallet_repo = None
+    wallet_entry = None
     if os.getenv('RUN_WITH_DB').lower() == 'true':
         conn = psycopg2.connect(
             database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
         )
         conn.autocommit = True
-        
+
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
-        wallet_entry = wallet_repo.get_wallet_entry(holder)
-        if wallet_entry is not None:
-            return f"{holder} - {wallet_entry['status']}"
+        wallet_entry = wallet_repo.get_wallet_entry(holder_address)
+        # prematurally return if holder address is not fresh to save api request and time
+        if wallet_entry is not None and wallet_entry['status'] != 'FRESH':
+            return Holder(address=holder_address, status=wallet_entry['status'],
+                          transactions_count=wallet_entry['transactions_count'])
 
     current_time = datetime.now(timezone.utc)
-    result = get_first_transfer_time(holder, current_time)
-    return_holder_status = f"{holder} - UNKNOWN"
-    status = "UNKNOWN"
+    result = get_first_transfer_time(holder_address, current_time)
+    return_holder: Holder = Holder(address=holder_address, status="UNKNOWN", transactions_count=0)
 
     if result == "SKIPPED":
-        return_holder_status = f"{holder} - SKIPPED"
+        return_holder['status'] = "SKIPPED"
     elif isinstance(result, tuple):
         blocktime, total_transactions = result
         time_diff = current_time - blocktime
-        is_within_24_hours = time_diff <= timedelta(hours=24)
-        status = "FRESH" if is_within_24_hours else "OLD"
-
+        is_within_24_hours = time_diff <= timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))
+        return_holder['status'] = "FRESH" if is_within_24_hours else "OLD"
+        # checking wallet transactions_count from DB - if transactions_count not none, increment transactions
+        return_holder['transactions_count'] = total_transactions
         hours_diff = time_diff.total_seconds() / 3600
 
-        LOGGER.info(f"First transfer block time for holder {holder}: {blocktime} "
+        LOGGER.info(f"First transfer block time for holder {holder_address}: {blocktime} "
                     f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
 
-        return_holder_status = f"{holder} - {status} - {total_transactions} transactions"
-
-    if status != "FRESH" and wallet_repo is not None:
-        wallet_repo.insert_new_wallet_entry(holder, status)
-
-    return return_holder_status
+    if wallet_repo is not None:
+        if wallet_entry is None and return_holder['status'] != "UNKNOWN":
+            wallet_repo.insert_new_wallet_entry(return_holder)
+        else:
+            wallet_repo.update_wallet_entry(return_holder)
+    return return_holder
 
 
 def check_holder_with_counter(args):
@@ -136,9 +140,6 @@ def check_holder_with_counter(args):
 
 def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> CoinData:
     total_holders_count = len(holder_addresses)
-    if total_holders_count < MIN_HOLDERS_COUNT:
-        print(f"Token {pump_address} has less than {MIN_HOLDERS_COUNT} holders.")
-        return {'coin_address': pump_address, 'holders': []}
 
     print(f"Assessing {total_holders_count} holder wallet addresses..")
 
@@ -154,46 +155,6 @@ def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> Coi
         updated_holders = [res.get() for res in results]
 
     coin_data = {'coin_address': pump_address, 'holders': updated_holders}
-    
-    # Calculate and save average transactions asynchronously
-    fresh_holders = [holder for holder in updated_holders if ' - FRESH' in holder]
-    if fresh_holders:
-        asyncio.create_task(calculate_and_save_average_transactions(fresh_holders))
 
     return coin_data
 
-
-async def calculate_and_save_average_transactions(fresh_holders: [str], filename: str = "average_transactions.txt"):
-    total_transactions = 0
-    fresh_wallet_count = 0
-
-    existing_total_transactions = 0
-    existing_count = 0
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r") as file:
-                lines = file.readlines()
-                if len(lines) >= 3:
-                    existing_total_transactions = int(lines[1].split(":")[1].strip())
-                    existing_count = int(lines[2].split(":")[1].strip())
-        except (ValueError, IndexError):
-            existing_total_transactions = 0
-            existing_count = 0
-
-    for holder_status in fresh_holders:
-        transactions_match = re.search(r'(\d+) transactions', holder_status)
-        if transactions_match:
-            total_transactions += int(transactions_match.group(1))
-            fresh_wallet_count += 1
-
-    combined_total_transactions = existing_total_transactions + total_transactions
-    combined_count = existing_count + fresh_wallet_count
-
-    combined_avg = combined_total_transactions / combined_count if combined_count > 0 else 0
-
-    with open(filename, "w") as file:
-        file.write(f"Average Transactions for a fresh wallet:\n{combined_avg:.2f}\n")
-        file.write(f"Total Transactions: {combined_total_transactions}\n")
-        file.write(f"Total Fresh Wallets: {combined_count}\n")
-
-    print(f"Average transactions for fresh wallets: {combined_avg:.2f}")

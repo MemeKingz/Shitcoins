@@ -27,7 +27,7 @@ async def main():
             print(f"Getting holder addresses for {pump_address}")
             holder_addresses = get_holders(pump_address)
 
-            if len(holder_addresses) >= 50:
+            if len(holder_addresses) >= int(os.getenv('MIN_HOLDER_COUNT')):
                 address_data = {
                     "coin address": pump_address,
                     "holders": holder_addresses
@@ -37,7 +37,7 @@ async def main():
                 print(f"Saved {pump_address} with {len(holder_addresses)} addresses.")
             else:
                 print(f"Skipped {pump_address} with only {len(holder_addresses)} addresses.")
-
+        
             coin_data_with_updated_holders = multiprocess_coin_holders(pump_address, holder_addresses)
 
             with open(f'coins/{pump_address}.json', 'w') as json_file:
