@@ -20,8 +20,6 @@ load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
 SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
-DB_PORT = os.getenv('DB_PORT')
-DB_USER = os.getenv('DB_USER')
 if not API_KEY:
     raise ValueError("API key not found. Please set it in the .env file.")
 
@@ -91,11 +89,10 @@ def check_holder(holder) -> str:
     if os.getenv('RUN_WITH_DB').lower() == 'true':
         # Connect to your postgres DB
         conn = psycopg2.connect(
-
-
-            database='shitcoins', user=DB_USER, host='localhost', port=DB_PORT
+            database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
         )
         conn.autocommit = True
+        
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         # check if exists in database, if so return early
         wallet_entry = wallet_repo.get_wallet_entry(holder)
