@@ -71,7 +71,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f'Skipped addresses: {skipped_addresses}\n'
                 f'Danger addresses: {danger_addresses}\n'
                 f'Percentage of fresh addresses: {percent_fresh:.2f}%\n'
-                f'Percentage of skipped addresses: {percent_skipped:.2f}%'
+                f'Percentage of skipped addresses: {percent_skipped:.2f}%\n'
                 f'Percentage of danger addresses: {percent_danger:.2f}%'
             )
 
