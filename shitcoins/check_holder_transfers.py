@@ -58,7 +58,6 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         }
 
         response = requests.get(url, headers=headers)
-        LOGGER.debug(f"Response status code: {response.status_code}")
 
         if response.status_code == 200:
             try:
@@ -87,7 +86,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
                 LOGGER.error(f"JSON decode error: {e}")
                 break
         elif response.status_code == 504:
-            LOGGER.warning(f"504 error - skipped address: {holder_addr}")
+            LOGGER.error(f"504 error - unknown address: {holder_addr}")
             return "UNKNOWN"
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
