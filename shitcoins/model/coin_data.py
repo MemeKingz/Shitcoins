@@ -1,6 +1,6 @@
 from typing import TypedDict, List
 
-from shitcoins.holder import Holder
+from shitcoins.model.holder import Holder
 
 from shitcoins.model.market_info import MarketInfo
 

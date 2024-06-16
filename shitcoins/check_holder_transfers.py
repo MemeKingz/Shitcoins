@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import requests
 import psycopg2
 import psycopg2.extras
-from shitcoins.coin_data import CoinData, Holder
+from shitcoins.model.coin_data import CoinData, Holder
 from shitcoins.database.table.wallet_repository import WalletRepository
 
 LOGGER = logging.getLogger(__name__)

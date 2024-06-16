@@ -5,9 +5,9 @@ import psycopg2
 import psycopg2.extras
 
 from shitcoins.check_holder_transfers import multiprocess_coin_holders, check_holder
-from shitcoins.coin_data import CoinData
+from shitcoins.model.coin_data import CoinData
 from shitcoins.database.table.wallet_repository import WalletRepository
-from shitcoins.holder import Holder
+from shitcoins.model.holder import Holder
 from shitcoins.model.market_info import MarketInfo
 
 

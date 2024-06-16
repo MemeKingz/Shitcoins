@@ -14,8 +14,12 @@ class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
         self.mint_address_fetcher = MintAddressFetcher()
 
     async def test_fetch_pump_addresses_from_telegram_returns_all_coin_data(self):
+        """
+        Call fetch_pump_addresses_from_telegram and see that it returns at least one coin
+        This test may error due to telegram, so it is wise to mock the return of telegram for testing
+        """
         coins_data = await self.mint_address_fetcher.fetch_pump_addresses_from_telegram()
-        self.assertEqual(3, len(coins_data))
+        self.assertNotEqual(0, len(coins_data))
 
 
     async def test_fetch_pump_addresses_from_telegram_respects_min_max_market_cap(self):

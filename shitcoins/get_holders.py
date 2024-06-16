@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import re
 
-from shitcoins.holder import Holder
+from shitcoins.model.holder import Holder
 
 # Load environment variables from .env file
 load_dotenv()
