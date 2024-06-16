@@ -96,7 +96,7 @@ class MintAddressFetcher:
 
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
             text = message.text
-            if text and "NEW CURVE COMPLETED" in text:
+            if text:
                 lines = text.split('\n')
                 potential_address = None
                 for line in lines:
