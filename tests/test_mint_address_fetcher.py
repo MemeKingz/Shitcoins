@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from shitcoins.mint_address_fetcher import MintAddressFetcher
@@ -6,15 +7,24 @@ from shitcoins.mint_address_fetcher import MintAddressFetcher
 class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
+        os.environ['MIN_MARKET_CAP'] = '20000'
+        os.environ['MAX_MARKET_CAP'] = '300000'
         self.test_token_address = '3S8qX1MsMqRbiwKg2cQyx7nis1oHMgaCuc9c4VfvVdPN'
         self.dicki_token_address = '8EHC2gfTLDb2eGQfjm17mVNLWPGRc9YVD75bepZ2nZJa'
         self.mint_address_fetcher = MintAddressFetcher()
 
-    async def test_fetch_pump_addresses_from_telegram_gets_correct_market_cap(self):
+    async def test_fetch_pump_addresses_from_telegram_returns_all_coin_data(self):
         coins_data = await self.mint_address_fetcher.fetch_pump_addresses_from_telegram()
-        print(coins_data)
+        self.assertEqual(3, len(coins_data))
 
-    def test_pump_address_info(self):
+
+    async def test_fetch_pump_addresses_from_telegram_respects_min_max_market_cap(self):
+        os.environ['MIN_MARKET_CAP'] = '0'
+        os.environ['MAX_MARKET_CAP'] = '1000'
+        coins_data = await self.mint_address_fetcher.fetch_pump_addresses_from_telegram()
+        self.assertEqual(0, len(coins_data))
+
+    def test_fetch_pump_address_info_dexscreener_returns_correct_market_info(self):
         market_info = self.mint_address_fetcher.fetch_pump_address_info_dexscreener([self.dicki_token_address,
                                                                                      self.test_token_address])
         self.assertTrue(self.dicki_token_address in market_info)

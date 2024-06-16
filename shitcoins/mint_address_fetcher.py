@@ -20,8 +20,6 @@ api_id = int(os.getenv('API_ID'))
 api_hash = os.getenv('API_HASH')
 phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
-MIN_MARKET_CAP = int(os.getenv('MIN_MARKET_CAP'))
-MAX_MARKET_CAP = int(os.getenv('MAX_MARKET_CAP'))
 FETCH_LIMIT = int(os.getenv('FETCH_LIMIT'))
 
 LOGGER = logging.getLogger(__name__)
@@ -92,7 +90,11 @@ class MintAddressFetcher:
 
     async def fetch_pump_addresses_from_telegram(self) -> List[CoinData]:
         await self.telegram_client.start(phone)
+
+        MIN_MARKET_CAP = float(os.getenv('MIN_MARKET_CAP'))
+        MAX_MARKET_CAP = float(os.getenv('MAX_MARKET_CAP'))
         addresses_market_cap: Dict[str, float] = {}
+
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
             text = message.text
             if text and "NEW CURVE COMPLETED" in text:
@@ -128,8 +130,9 @@ class MintAddressFetcher:
                     return_coins_data.append(CoinData(coin_address=new_address,
                                                       market_info=address_to_market_info[new_address],
                                                       holders=[]))
-            else:
+            elif MIN_MARKET_CAP <= addresses_market_cap[new_address] <= MAX_MARKET_CAP:
                 LOGGER.warning(f"cannot determine market value for new address {new_address} via dexscreen")
+                LOGGER.warning("using telegram market information instead")
                 # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
                 return_coins_data.append(CoinData(coin_address=new_address,
                                                   market_info=MarketInfo(market_cap=addresses_market_cap[new_address],
