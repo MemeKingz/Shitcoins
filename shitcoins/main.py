@@ -26,6 +26,7 @@ async def main():
 
     while True:
         coins_data = await fetcher.fetch_pump_addresses_from_telegram()
+        # todo - CONFIRM IF HOLDERS OF COIN IS ORDERED BY, AND ORDERED BY WHAT?
         for coin_data in coins_data:
             print(f"Getting holder addresses for {coin_data['coin_address']}")
             holders = get_holders(coin_data['coin_address'])

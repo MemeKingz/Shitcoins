@@ -3,6 +3,12 @@
 Run `setup.sh` on your linux machine to install a virtual environment with necessary dependencies.
 Run it again till your terminal has `(venv)` activated. 
 
+## Recommended environment variable values
+* MIN_MARKET_CAP=20000
+* MAX_MARKET_CAP=1000000
+* SKIP_THRESHOLD=150
+* FRESH_WALLET_HOURS=24
+
 ## Database
 By default, this app requires a postgresql database to run with the following properties below:
 * port = 5433

@@ -19,7 +19,6 @@ LOGGER = logging.getLogger(__name__)
 load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
-SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
 RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
 
 if not API_KEY:
@@ -39,16 +38,20 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
-    max_trns_per_req = 50
+    max_trns_per_req = 10
     last_tx_hash = ""
     total_transactions = 0
+    # query transactions till 2 days ago
+    to_time_ordinal = (datetime.now(timezone.utc).date() - timedelta(2)).toordinal()
 
     while True:
-        if total_transactions >= SKIP_THRESHOLD:
-            LOGGER.info(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_addr}, skipping.")
+        if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
+            LOGGER.info(f"Reached {int(os.getenv('SKIP_THRESHOLD', 200))} transactions for "
+                        f"holder {holder_addr}, skipping.")
             return "SKIPPED"
 
-        url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_addr}&limit={max_trns_per_req}"
+        url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
+               f"&limit={max_trns_per_req}&toTime={to_time_ordinal}")
         if last_tx_hash:
             url += f"&beforeHash={last_tx_hash}"
         headers = {
@@ -61,7 +64,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
 
         if response.status_code == 200:
             try:
-                data = response.json()
+                data = response.json()['data']
                 if not data:
                     break
 
@@ -72,14 +75,15 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
                                           .replace(microsecond=0))
                 last_tx_hash = data[-1]['txHash']
 
-                # check for danger, if timestamps of first and last are the same
+                # check for snipers and if timestamps of first and last are the same
                 if total_transactions <= max_trns_per_req:
                     if latest_transfer_time == earliest_transfer_time:
-                        return "DANGER"
+                        return "SKIPPED"
 
-                # check for fresh
+                # check for fresh/old
                 if (len(data) < max_trns_per_req or current_time - latest_transfer_time
                         > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
+                    # return potential fresh/old with total transactions
                     return earliest_transfer_time, total_transactions
             except json.JSONDecodeError as e:
                 LOGGER.error(f"JSON decode error: {e}")
@@ -126,7 +130,6 @@ def check_holder(holder: Holder) -> Holder:
         time_diff = current_time - blocktime
         is_within_24_hours = time_diff <= timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))
         holder['status'] = "FRESH" if is_within_24_hours else "OLD"
-        # checking wallet transactions_count from DB - if transactions_count not none, increment transactions
         holder['transactions_count'] = total_transactions
         hours_diff = time_diff.total_seconds() / 3600
 
