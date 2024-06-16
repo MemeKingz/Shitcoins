@@ -55,10 +55,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
-
+            market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
+            liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
+            price_formatted = '${:f}'.format(coin_data['market_info']['price'])
             message = (
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
+                f"Market cap: {market_cap_formatted}\n"
+                f"Price: {price_formatted}\n"
+                f"Liquidity: {liquidity_formatted}\n"
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
                 f'Skipped addresses: {skipped_addresses}\n'

@@ -1,6 +1,6 @@
 import logging
 
-from shitcoins.coin_data import Holder
+from shitcoins.model.coin_data import Holder
 from shitcoins.database.table.table import Table
 
 LOGGER = logging.getLogger(__name__)

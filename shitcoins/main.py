@@ -1,9 +1,10 @@
 import json
 import os
 import asyncio
+import logging
 from time import sleep
 
-from scrape_pump_fun import MintAddressFetcher
+from mint_address_fetcher import MintAddressFetcher
 from get_holders import get_holders
 from check_holder_transfers import multiprocess_coin_holders
 from telegram_alert import alert
@@ -14,6 +15,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 LOOP_DELAY = int(os.getenv('LOOP_DELAY'))
 
+logging.basicConfig(level=logging.INFO)
 
 async def main():
     if not os.path.exists('coins'):
@@ -22,25 +24,23 @@ async def main():
     fetcher = MintAddressFetcher()
 
     while True:
-        pump_addresses = await fetcher.fetch_pump_addresses_from_telegram()
-        for pump_address in pump_addresses:
-            print(f"Getting holder addresses for {pump_address}")
-            holder_addresses = get_holders(pump_address)
+        coins_data = await fetcher.fetch_pump_addresses_from_telegram()
+        for coin_data in coins_data:
+            print(f"Getting holder addresses for {coin_data['coin_address']}")
+            holders = get_holders(coin_data['coin_address'])
 
-            if len(holder_addresses) >= int(os.getenv('MIN_HOLDER_COUNT')):
-                address_data = {
-                    "coin address": pump_address,
-                    "holders": holder_addresses
-                }
-                with open(f'coins/{pump_address}.json', 'w') as json_file:
-                    json.dump(address_data, json_file, indent=4)
-                print(f"Saved {pump_address} with {len(holder_addresses)} addresses.")
+            if len(holders) >= int(os.getenv('MIN_HOLDER_COUNT')):
+                coin_data['holders'] = holders
+                with open(f"coins/{coin_data['coin_address']}.json", 'w') as json_file:
+                    json.dump(coin_data, json_file, indent=4)
+                print(f"Saved {coin_data['coin_address']} with {len(holders)} addresses.")
             else:
-                print(f"Skipped {pump_address} with only {len(holder_addresses)} addresses.")
+                print(f"Skipped {coin_data['coin_address']} with only {len(holders)} addresses.")
 
-            coin_data_with_updated_holders = multiprocess_coin_holders(pump_address, holder_addresses)
+            coin_data_with_updated_holders = multiprocess_coin_holders(coin_data)
 
-            with open(f'coins/{pump_address}.json', 'w') as json_file:
+            # Write the updated data back to the JSON file
+            with open(f"coins/{coin_data['coin_address']}.json", 'w') as json_file:
                 try:
                     json.dump(coin_data_with_updated_holders, json_file, indent=4)
                     print(f"Updated JSON data: {coin_data_with_updated_holders}")

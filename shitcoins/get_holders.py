@@ -1,7 +1,11 @@
+from typing import List
+
 import requests
 from dotenv import load_dotenv
 import os
 import re
+
+from shitcoins.model.holder import Holder
 
 # Load environment variables from .env file
 load_dotenv()
@@ -15,12 +19,12 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-def get_holders(token_address):
+def get_holders(token_address) -> List[Holder]:
     api_key = os.getenv('SOLSCAN_API_KEY')
     if not api_key:
         raise ValueError("API key not found. Please set it in the .env file.")
 
-    holder_addresses = []
+    holder_addresses: List[Holder] = []
     page = 0
     limit = 50  # Adjust the limit as per the API's pagination limit
     min_holders_required = int(os.getenv('MIN_HOLDER_COUNT'))
@@ -41,7 +45,8 @@ def get_holders(token_address):
             if not holders:
                 break  # No more data to fetch
 
-            holder_addresses.extend([holder['owner'] for holder in holders if is_valid_solana_address(holder['owner'])])
+            holder_addresses.extend([Holder(address=holder['owner'], status="UNKNOWN", transactions_count=0)
+                                     for holder in holders if is_valid_solana_address(holder['owner'])])
             page += 1
         else:
             print(f"Error: {response.status_code} - {response.text}")
