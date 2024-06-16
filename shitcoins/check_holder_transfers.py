@@ -33,21 +33,22 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-def get_first_transfer_time(holder_address: str, current_time: datetime) -> None | str | tuple[datetime, int]:
-    if not is_valid_solana_address(holder_address):
-        LOGGER.info(f"Invalid Solana address: {holder_address}")
+def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) \
+        -> None | str | tuple[datetime, int]:
+    if not is_valid_solana_address(holder_addr):
+        LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
-    limit = 50
+    max_trns_per_req = 50
     last_tx_hash = ""
     total_transactions = 0
 
     while True:
         if total_transactions >= SKIP_THRESHOLD:
-            LOGGER.info(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_address}, skipping.")
+            LOGGER.info(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_addr}, skipping.")
             return "SKIPPED"
 
-        url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_address}&limit={limit}"
+        url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_addr}&limit={max_trns_per_req}"
         if last_tx_hash:
             url += f"&beforeHash={last_tx_hash}"
         headers = {
@@ -65,18 +66,26 @@ def get_first_transfer_time(holder_address: str, current_time: datetime) -> None
                     break
 
                 total_transactions += len(data)
-                latest_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
-                earliest_transfer_time = datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
+                latest_transfer_time = (datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
+                                        .replace(microsecond=0))
+                earliest_transfer_time = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
+                                          .replace(microsecond=0))
                 last_tx_hash = data[-1]['txHash']
 
-                if (len(data) < limit or current_time - latest_transfer_time
+                # check for danger, if timestamps of first and last are the same
+                if total_transactions <= max_trns_per_req:
+                    if latest_transfer_time == earliest_transfer_time:
+                        return "DANGER"
+
+                # check for fresh
+                if (len(data) < max_trns_per_req or current_time - latest_transfer_time
                         > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
                     return earliest_transfer_time, total_transactions
             except json.JSONDecodeError as e:
                 LOGGER.error(f"JSON decode error: {e}")
                 break
         elif response.status_code == 504:
-            LOGGER.warning(f"504 error - skipped address: {holder_address}")
+            LOGGER.warning(f"504 error - skipped address: {holder_addr}")
             return "UNKNOWN"
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
@@ -99,16 +108,18 @@ def check_holder(holder_address: str) -> Holder:
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_entry = wallet_repo.get_wallet_entry(holder_address)
         # prematurally return if holder address is not fresh to save api request and time
-        if wallet_entry is not None and wallet_entry['status'] == 'OLD' and wallet_entry['status'] == 'SKIPPED':
+        if wallet_entry is not None and (wallet_entry['status'] == 'OLD'
+                                         or wallet_entry['status'] == 'SKIPPED'
+                                         or wallet_entry['status'] == 'DANGER'):
             return Holder(address=holder_address, status=wallet_entry['status'],
                           transactions_count=wallet_entry['transactions_count'])
 
     current_time = datetime.now(timezone.utc)
-    result = get_first_transfer_time(holder_address, current_time)
+    result = get_first_transfer_time_or_status(holder_address, current_time)
     return_holder: Holder = Holder(address=holder_address, status="UNKNOWN", transactions_count=0)
 
-    if result == "SKIPPED":
-        return_holder['status'] = "SKIPPED"
+    if result == "SKIPPED" or result == "DANGER":
+        return_holder['status'] = result
     elif isinstance(result, tuple):
         blocktime, total_transactions = result
         time_diff = current_time - blocktime

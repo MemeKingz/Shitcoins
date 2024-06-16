@@ -45,13 +45,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
             skipped_addresses = sum(1 for holder in holders if holder['status'] == 'SKIPPED')
+            danger_addresses = sum(1 for holder in holders if holder['status'] == 'DANGER')
 
-            if total_addresses == 0:
-                percent_fresh = 0
-                percent_skipped = 0
-            else:
+            percent_fresh = 0
+            percent_skipped = 0
+            percent_danger = 0
+            if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
                 percent_skipped = (skipped_addresses / total_addresses) * 100
+                percent_danger = (danger_addresses / total_addresses) * 100
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
@@ -62,8 +64,10 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
                 f'Skipped addresses: {skipped_addresses}\n'
+                f'Danger addresses: {danger_addresses}\n'
                 f'Percentage of fresh addresses: {percent_fresh:.2f}%\n'
                 f'Percentage of skipped addresses: {percent_skipped:.2f}%'
+                f'Percentage of danger addresses: {percent_danger:.2f}%'
             )
 
             print(message)
