@@ -127,25 +127,24 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(3, len(coin_data['holders']))
 
-    # def test_check_holder_transactions_count_with_db(self):
-    #     """
-    #     Test that transaction counts are being recorded correctly to the database.
-    #     todo - 840 API requests are needed to verify that this works! Refactor by using mock request api instead
-    #     """
-    #     os.environ['FRESH_WALLET_HOURS'] = '10000000'
-    #     os.environ['SKIP_THRESHOLD'] = '1000000'
-    #     os.environ['RUN_WITH_DB'] = 'true'
-    #
-    #     wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
-    #     wallet_repo.truncate_all_entries()
-    #     check_holder(self.expected_holder_addr_fresh)
-    #     result = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
-    #     self.assertEqual(self.expected_holder_addr_fresh['address'], result['address'])
-    #     self.assertEqual("FRESH", result['status'])
-    #
-    #     self.assertTrue(result['transactions_count'] > 0)
-    #     check_holder(self.expected_holder_addr_fresh)
-    #     result_second_run = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
-    #     self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
+    def test_check_holder_transactions_count_with_db(self):
+        """
+        Test that transaction counts are being recorded correctly to the database.
+        """
+        os.environ['FRESH_WALLET_HOURS'] = '10000000'
+        os.environ['SKIP_THRESHOLD'] = '1000'
+        os.environ['RUN_WITH_DB'] = 'true'
+
+        wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
+        wallet_repo.truncate_all_entries()
+        check_holder(self.expected_holder_addr_fresh)
+        result = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
+        self.assertEqual(self.expected_holder_addr_fresh['address'], result['address'])
+        self.assertEqual("FRESH", result['status'])
+
+        self.assertTrue(result['transactions_count'] > 0)
+        check_holder(self.expected_holder_addr_fresh)
+        result_second_run = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
+        self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
 
 

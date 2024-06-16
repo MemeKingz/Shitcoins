@@ -38,8 +38,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
-    max_trns_per_req = 10
-    last_tx_hash = ""
+    max_trns_per_req = 50
     total_transactions = 0
     # query transactions till 2 days ago
     to_time_ordinal = (datetime.now(timezone.utc).date() - timedelta(2)).toordinal()
@@ -51,9 +50,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
             return "SKIPPED"
 
         url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
-               f"&limit={max_trns_per_req}&toTime={to_time_ordinal}")
-        if last_tx_hash:
-            url += f"&beforeHash={last_tx_hash}"
+               f"&limit={max_trns_per_req}&toTime={to_time_ordinal}&offset={total_transactions}")
         headers = {
             'accept': 'application/json',
             'token': API_KEY
