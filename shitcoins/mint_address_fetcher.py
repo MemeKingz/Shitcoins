@@ -118,7 +118,7 @@ class MintAddressFetcher:
         await self.telegram_client.disconnect()
 
         new_addresses = [address for address in telegram_addresses_market_cap
-                         if list(telegram_addresses_market_cap.keys()) not in self.seen_addresses]
+                        if address not in self.seen_addresses]
         dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
 
         return_coins_data: List[CoinData] = []
@@ -140,5 +140,6 @@ class MintAddressFetcher:
                 #                                   holders=[]))
 
         self.seen_addresses.extend(new_addresses)
+        self.seen_addresses = list(set(self.seen_addresses))
         self._save_seen_addresses()
         return return_coins_data
