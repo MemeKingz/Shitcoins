@@ -23,7 +23,7 @@ class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_fetch_pump_addresses_from_telegram_respects_min_max_market_cap(self):
-        os.environ['MIN_MARKET_CAP'] = '0'
+        os.environ['MIN_MARKET_CAP'] = '1'
         os.environ['MAX_MARKET_CAP'] = '1000'
         coins_data = await self.mint_address_fetcher.fetch_pump_addresses_from_telegram()
         self.assertEqual(0, len(coins_data))

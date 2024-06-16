@@ -92,51 +92,52 @@ class MintAddressFetcher:
 
         MIN_MARKET_CAP = float(os.getenv('MIN_MARKET_CAP'))
         MAX_MARKET_CAP = float(os.getenv('MAX_MARKET_CAP'))
-        addresses_market_cap: Dict[str, float] = {}
+        telegram_addresses_market_cap: Dict[str, float] = {}
 
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
             text = message.text
-            if text and "NEW CURVE COMPLETED" in text:
+            if text:
                 lines = text.split('\n')
-                potential_address = None
                 for line in lines:
                     if 'pump' in line:
                         potential_address = line.strip().strip('`')
                         if potential_address.endswith('pump'):
-                            addresses_market_cap[potential_address] = 0
+                            telegram_addresses_market_cap[potential_address] = 0
 
-                    if "Marketcap" in line:
-                        market_cap_str = line.split("$")[1].strip()
-                        try:
-                            market_cap = float( re.sub(r'[^\d.]', '', market_cap_str))
-                            if potential_address in addresses_market_cap:
-                                addresses_market_cap[potential_address] = market_cap
-                        except ValueError:
-                            LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
-                            continue
+                    # IGNORE SCRAPING MARKETCAP FROM TELEGRAM
+                    # if "Marketcap" in line:
+                    #     market_cap_str = line.split("$")[1].strip()
+                    #     try:
+                    #         market_cap = float( re.sub(r'[^\d.]', '', market_cap_str))
+                    #         if potential_address in telegram_addresses_market_cap:
+                    #             telegram_addresses_market_cap[potential_address] = market_cap
+                    #     except ValueError:
+                    #         LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
+                    #         continue
 
         await self.telegram_client.disconnect()
 
-        new_addresses = [address for address in addresses_market_cap
-                         if list(addresses_market_cap.keys()) not in self.seen_addresses]
-        address_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
+        new_addresses = [address for address in telegram_addresses_market_cap
+                         if list(telegram_addresses_market_cap.keys()) not in self.seen_addresses]
+        dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
 
         return_coins_data: List[CoinData] = []
         for new_address in new_addresses:
-            if new_address in address_to_market_info:
-                if MIN_MARKET_CAP <= address_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
+            if new_address in dexscreener_addr_to_market_info:
+                if MIN_MARKET_CAP <= dexscreener_addr_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
                     # ADD NEW ADDRESS THAT HAS MARKET_INFO DATA (POST-MIGRATION)
                     return_coins_data.append(CoinData(coin_address=new_address,
-                                                      market_info=address_to_market_info[new_address],
+                                                      market_info=dexscreener_addr_to_market_info[new_address],
                                                       holders=[]))
-            elif MIN_MARKET_CAP <= addresses_market_cap[new_address] <= MAX_MARKET_CAP:
-                LOGGER.warning(f"cannot determine market value for new address {new_address} via dexscreen")
-                LOGGER.warning("using telegram market information instead")
+            elif MIN_MARKET_CAP <= telegram_addresses_market_cap[new_address] <= MAX_MARKET_CAP:
+                LOGGER.warning(f"cannot determine market value for new coin {new_address}; skipping cause pre-migration")
+                # LOGGER.warning("using telegram market information instead")
                 # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
-                return_coins_data.append(CoinData(coin_address=new_address,
-                                                  market_info=MarketInfo(market_cap=addresses_market_cap[new_address],
-                                                                         liquidity=0, price=0),
-                                                  holders=[]))
+                # IGNORE PRE-MIGRATION COINS
+                # return_coins_data.append(CoinData(coin_address=new_address,
+                #                                   market_info=MarketInfo(market_cap=telegram_addresses_market_cap[new_address],
+                #                                                          liquidity=0, price=0),
+                #                                   holders=[]))
 
         self.seen_addresses.extend(new_addresses)
         self._save_seen_addresses()

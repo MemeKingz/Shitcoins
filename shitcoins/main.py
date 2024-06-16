@@ -17,6 +17,7 @@ LOOP_DELAY = int(os.getenv('LOOP_DELAY'))
 
 logging.basicConfig(level=logging.INFO)
 
+
 async def main():
     if not os.path.exists('coins'):
         os.makedirs('coins')
@@ -25,6 +26,7 @@ async def main():
 
     while True:
         coins_data = await fetcher.fetch_pump_addresses_from_telegram()
+        # todo - CONFIRM IF HOLDERS OF COIN IS ORDERED BY, AND ORDERED BY WHAT?
         for coin_data in coins_data:
             print(f"Getting holder addresses for {coin_data['coin_address']}")
             holders = get_holders(coin_data['coin_address'])

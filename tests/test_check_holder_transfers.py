@@ -20,6 +20,8 @@ class TestCheckHolderTransfers(unittest.TestCase):
                                                         status='OLD', transactions_count=0)
         self.expected_holder_addr_skipped: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
                                                            status='SKIPPED', transactions_count=0)
+        self.expected_holder_addr_skipped: Holder = Holder(address='716gAK3yUXGsB6CQbUw6Yr26neWa4TzZePdYHN299ANd',
+                                                        status='SKIPPED', transactions_count=0)
         self.expected_holder_addr_fresh: Holder = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt',
                                                          status='FRESH', transactions_count=0)
         self.expected_holder_addr_unknown: Holder = Holder(address='bad address', status='UNKNOWN',
@@ -36,6 +38,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['DB_PORT'] = '5332'
         os.environ['MIN_HOLDER_COUNT'] = '1'
         os.environ['FRESH_WALLET_HOURS'] = '24'
+        os.environ['SKIP_THRESHOLD'] = '200'
         self.conn = psycopg2.connect(
             database='shitcoins', user=os.environ['DB_USER'], host='localhost', port=os.environ['DB_PORT']
         )
@@ -54,6 +57,14 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(3, len(coin_data['holders']))
         self.assertEqual('369s8C1BTaMFRbyKtEfhjPV3d1N9t2VFV7Am3Q549Asi', coin_data['holders'][2]['address'])
         self.assertEqual('OLD', coin_data['holders'][2]['status'])
+
+    def test_multiprocess_coin_holders_identifies_skip_based_on_skip_threshold(self):
+        os.environ['SKIP_THRESHOLD'] = '50'
+        os.environ['RUN_WITH_DB'] = 'false'
+        coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_skipped])
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
+        self.assertEqual(1, len(coin_data['holders']))
+        self.assertEqual('SKIPPED', coin_data['holders'][0]['status'])
 
     def test_multiprocess_coin_holder_unknown_not_added_to_db(self):
         """
@@ -74,7 +85,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_added_to_db(self):
         """
-        Test if multiprocess_coin_holders adds OLD and SKIPPED to database
+        Test if multiprocess_coin_holders adds OLD and DANGER to database
         """
         os.environ['RUN_WITH_DB'] = 'true'
 
@@ -96,6 +107,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         holder_skipped = wallet_repo.get_wallet_entry(self.expected_holder_addr_skipped['address'])
         self.assertEqual(self.expected_holder_addr_skipped['address'], holder_skipped['address'])
         self.assertEqual('SKIPPED', holder_skipped['status'])
+
 
     def test_multiprocess_coin_holders_skip_checks_if_in_db(self):
         """
@@ -120,7 +132,9 @@ class TestCheckHolderTransfers(unittest.TestCase):
         Test that transaction counts are being recorded correctly to the database.
         """
         os.environ['FRESH_WALLET_HOURS'] = '10000000'
+        os.environ['SKIP_THRESHOLD'] = '1000'
         os.environ['RUN_WITH_DB'] = 'true'
+
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
         check_holder(self.expected_holder_addr_fresh)
@@ -132,6 +146,5 @@ class TestCheckHolderTransfers(unittest.TestCase):
         check_holder(self.expected_holder_addr_fresh)
         result_second_run = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
         self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
-
 
 

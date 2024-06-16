@@ -4,6 +4,7 @@ coins/
 __pycache__/
 seen_addresses.json
 .env
+.idea
 old/
 venv/
 shitcoins.egg-info/dependency_links.txt

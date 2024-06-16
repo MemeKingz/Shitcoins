@@ -19,7 +19,6 @@ LOGGER = logging.getLogger(__name__)
 load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
-SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
 RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
 
 if not API_KEY:
@@ -33,23 +32,25 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-def get_first_transfer_time(holder_address: str, current_time: datetime) -> None | str | tuple[datetime, int]:
-    if not is_valid_solana_address(holder_address):
-        LOGGER.info(f"Invalid Solana address: {holder_address}")
+def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) -> (
+        None | str | tuple[datetime, int]):
+    if not is_valid_solana_address(holder_addr):
+        LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
-    limit = 50
-    last_tx_hash = ""
+    max_trns_per_req = 50
     total_transactions = 0
+    # query transactions till 2 days ago
+    to_time_ordinal = (datetime.now(timezone.utc).date() - timedelta(2)).toordinal()
 
     while True:
-        if total_transactions >= SKIP_THRESHOLD:
-            LOGGER.info(f"Reached {SKIP_THRESHOLD} transactions for holder {holder_address}, skipping.")
+        if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
+            LOGGER.info(f"Reached {int(os.getenv('SKIP_THRESHOLD', 200))} transactions for "
+                        f"holder {holder_addr}, skipping.")
             return "SKIPPED"
 
-        url = f"https://pro-api.solscan.io/v1.0/account/transactions?account={holder_address}&limit={limit}"
-        if last_tx_hash:
-            url += f"&beforeHash={last_tx_hash}"
+        url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
+               f"&limit={max_trns_per_req}&toTime={to_time_ordinal}&offset={total_transactions}")
         headers = {
             'accept': 'application/json',
             'token': API_KEY
@@ -60,23 +61,32 @@ def get_first_transfer_time(holder_address: str, current_time: datetime) -> None
 
         if response.status_code == 200:
             try:
-                data = response.json()
+                data = response.json()['data']
                 if not data:
                     break
 
                 total_transactions += len(data)
-                latest_transfer_time = datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
-                earliest_transfer_time = datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
+                latest_transfer_time = (datetime.fromtimestamp(data[0]['blockTime'], tz=timezone.utc)
+                                        .replace(microsecond=0))
+                earliest_transfer_time = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
+                                          .replace(microsecond=0))
                 last_tx_hash = data[-1]['txHash']
 
-                if (len(data) < limit or current_time - latest_transfer_time
+                # check for snipers and if timestamps of first and last are the same
+                if total_transactions <= max_trns_per_req:
+                    if latest_transfer_time == earliest_transfer_time:
+                        return "SKIPPED"
+
+                # check for fresh/old
+                if (len(data) < max_trns_per_req or current_time - latest_transfer_time
                         > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
+                    # return potential fresh/old with total transactions
                     return earliest_transfer_time, total_transactions
             except json.JSONDecodeError as e:
                 LOGGER.error(f"JSON decode error: {e}")
                 break
         elif response.status_code == 504:
-            LOGGER.warning(f"504 error - skipped address: {holder_address}")
+            LOGGER.warning(f"504 error - skipped address: {holder_addr}")
             return "UNKNOWN"
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
@@ -91,6 +101,7 @@ def check_holder(holder: Holder) -> Holder:
     wallet_repo = None
     wallet_entry = None
     if os.getenv('RUN_WITH_DB').lower() == 'true':
+        # todo - creating a new connection everytime may be inefficient, consider alternative
         conn = psycopg2.connect(
             database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
         )
@@ -99,22 +110,23 @@ def check_holder(holder: Holder) -> Holder:
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_entry = wallet_repo.get_wallet_entry(holder['address'])
         # prematurely return if holder address is not fresh to save api request and time
-        if wallet_entry is not None and wallet_entry['status'] == 'OLD' and wallet_entry['status'] == 'SKIPPED':
+        if wallet_entry is not None and (wallet_entry['status'] == 'OLD'
+                                         or wallet_entry['status'] == 'SKIPPED'
+                                         or wallet_entry['status'] == 'DANGER'):
             holder['status'] = wallet_entry['status']
             holder['transactions_count'] = wallet_entry['transactions_count']
             return holder
 
     current_time = datetime.now(timezone.utc)
-    result = get_first_transfer_time(holder['address'], current_time)
+    result = get_first_transfer_time_or_status(holder['address'], current_time)
 
-    if result == "SKIPPED":
-        holder['status'] = "SKIPPED"
+    if result == "SKIPPED" or result == "DANGER":
+        holder['status'] = result
     elif isinstance(result, tuple):
         blocktime, total_transactions = result
         time_diff = current_time - blocktime
         is_within_24_hours = time_diff <= timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))
         holder['status'] = "FRESH" if is_within_24_hours else "OLD"
-        # checking wallet transactions_count from DB - if transactions_count not none, increment transactions
         holder['transactions_count'] = total_transactions
         hours_diff = time_diff.total_seconds() / 3600
 
