@@ -33,8 +33,8 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) \
-        -> None | str | tuple[datetime, int]:
+def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) -> (
+        None | str | tuple[datetime, int]):
     if not is_valid_solana_address(holder_addr):
         LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
