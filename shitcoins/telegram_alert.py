@@ -43,8 +43,8 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
-            fresh_addresses = sum(1 for holder in holders if ' - FRESH' in holder)
-            skipped_addresses = sum(1 for holder in holders if ' - SKIPPED' in holder)
+            fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
+            skipped_addresses = sum(1 for holder in holders if holder['status'] == 'SKIPPED')
 
             if total_addresses == 0:
                 percent_fresh = 0
@@ -55,13 +55,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
-
+            market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
+            liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
+            price_formatted = '${:f}'.format(coin_data['market_info']['price'])
             message = (
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
-                f"Market cap: ${coin_data['market_info']['market_cap']}\n"
-                f"Price: ${round(coin_data['market_info']['price'], 2)}\n"
-                f"Liquidity: ${round(coin_data['market_info']['liquidity'], 2)}\n"
+                f"Market cap: {market_cap_formatted}\n"
+                f"Price: {price_formatted}\n"
+                f"Liquidity: {liquidity_formatted}\n"
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
                 f'Skipped addresses: {skipped_addresses}\n'

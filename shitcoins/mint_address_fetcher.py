@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict
+from typing import List, Dict, TypedDict
 
 from telethon import TelegramClient
 import re
@@ -92,31 +92,49 @@ class MintAddressFetcher:
 
     async def fetch_pump_addresses_from_telegram(self) -> List[CoinData]:
         await self.telegram_client.start(phone)
-        addresses = []
+        addresses_market_cap: Dict[str, float] = {}
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
             text = message.text
             if text and "NEW CURVE COMPLETED" in text:
                 lines = text.split('\n')
+                potential_address = None
                 for line in lines:
                     if 'pump' in line:
                         potential_address = line.strip().strip('`')
                         if potential_address.endswith('pump'):
-                            addresses.append( potential_address)
+                            addresses_market_cap[potential_address] = 0
+
+                    if "Marketcap" in line:
+                        marketcap_str = line.split("$")[1].strip()
+                        try:
+                            market_cap = self.clean_marketcap(marketcap_str)
+                            if potential_address in addresses_market_cap:
+                                addresses_market_cap[potential_address] = market_cap
+                        except ValueError:
+                            LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
+                            continue
 
         await self.telegram_client.disconnect()
 
-        new_addresses = [address for address in addresses if address not in self.seen_addresses]
+        new_addresses = [address for address in addresses_market_cap
+                         if list(addresses_market_cap.keys()) not in self.seen_addresses]
         address_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
 
         return_coins_data: List[CoinData] = []
         for new_address in new_addresses:
             if new_address in address_to_market_info:
                 if MIN_MARKET_CAP <= address_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
+                    # ADD NEW ADDRESS THAT HAS MARKET_INFO DATA (POST-MIGRATION)
                     return_coins_data.append(CoinData(coin_address=new_address,
                                                       market_info=address_to_market_info[new_address],
                                                       holders=[]))
             else:
-                LOGGER.error(f"cannot determine market value for new address {new_address}; skipping!")
+                LOGGER.warning(f"cannot determine market value for new address {new_address} via dexscreen")
+                # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
+                return_coins_data.append(CoinData(coin_address=new_address,
+                                                  market_info=MarketInfo(market_cap=addresses_market_cap[new_address],
+                                                                         liquidity=0, price=0),
+                                                  holders=[]))
 
         self.seen_addresses.extend(new_addresses)
         self.save_seen_addresses()

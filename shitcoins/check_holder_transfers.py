@@ -2,31 +2,29 @@ from __future__ import annotations
 
 import logging
 import multiprocessing
-
-import psycopg2
-import psycopg2.extras
-import requests
-from dotenv import load_dotenv
 import os
 import json
 import re
 from datetime import datetime, timedelta, timezone
 
-from shitcoins.coin_data import CoinData
+from dotenv import load_dotenv
+import requests
+import psycopg2
+import psycopg2.extras
+from shitcoins.coin_data import CoinData, Holder
 from shitcoins.database.table.wallet_repository import WalletRepository
 
 LOGGER = logging.getLogger(__name__)
 
-# Load environment variables from .env file
 load_dotenv()
 
 API_KEY = os.getenv('SOLSCAN_API_KEY')
 SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
+RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
 
 if not API_KEY:
     raise ValueError("API key not found. Please set it in the .env file.")
 
-# Define a pattern for Solana addresses
 solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{32,44}$")
 
 
@@ -35,12 +33,10 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-# Function to determine if holder should be SKIPPED, IGNORED or INCLUDED with earliest transfer time
-def get_first_transfer_time(holder_address: str,
-                            current_time: datetime) -> str | datetime | None:
+def get_first_transfer_time(holder_address: str, current_time: datetime) -> None | str | tuple[datetime, int]:
     if not is_valid_solana_address(holder_address):
         LOGGER.info(f"Invalid Solana address: {holder_address}")
-        return
+        return "UNKNOWN"
 
     limit = 50
     last_tx_hash = ""
@@ -73,57 +69,64 @@ def get_first_transfer_time(holder_address: str,
                 earliest_transfer_time = datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
                 last_tx_hash = data[-1]['txHash']
 
-                # Check number of returned transactions is at the end or latest transaction is older than 24 hours
-                if len(data) < limit or current_time - latest_transfer_time > timedelta(hours=24):
-                    return earliest_transfer_time
-
+                if (len(data) < limit or current_time - latest_transfer_time
+                        > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
+                    return earliest_transfer_time, total_transactions
             except json.JSONDecodeError as e:
                 LOGGER.error(f"JSON decode error: {e}")
                 break
+        elif response.status_code == 504:
+            LOGGER.warning(f"504 error - skipped address: {holder_address}")
+            return "UNKNOWN"
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
             break
 
+    return "UNKNOWN"
 
-def check_holder(holder) -> str:
+
+def check_holder(holder: Holder) -> Holder:
     LOGGER.info(f"Processing holder: {holder}")
 
     wallet_repo = None
+    wallet_entry = None
     if os.getenv('RUN_WITH_DB').lower() == 'true':
-        # Connect to your postgres DB
         conn = psycopg2.connect(
-            database='shitcoins', user='bottas', host='localhost', port='5333'
+            database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
         )
         conn.autocommit = True
+
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
-        # check if exists in database, if so return early
-        wallet_entry = wallet_repo.get_wallet_entry(holder)
-        if wallet_entry is not None:
-            return f"{holder} - {wallet_entry['status']}"
+        wallet_entry = wallet_repo.get_wallet_entry(holder['address'])
+        # prematurely return if holder address is not fresh to save api request and time
+        if wallet_entry is not None and wallet_entry['status'] == 'OLD' and wallet_entry['status'] == 'SKIPPED':
+            holder['status'] = wallet_entry['status']
+            holder['transactions_count'] = wallet_entry['transactions_count']
+            return holder
 
     current_time = datetime.now(timezone.utc)
-    blocktime = get_first_transfer_time(holder, current_time)
-    return_holder_status = f"{holder} - UNKNOWN"
-    status = "UNKNOWN"
+    result = get_first_transfer_time(holder['address'], current_time)
 
-    if blocktime == "SKIPPED":
-        return_holder_status = f"{holder} - SKIPPED"
-    elif isinstance(blocktime, datetime):
+    if result == "SKIPPED":
+        holder['status'] = "SKIPPED"
+    elif isinstance(result, tuple):
+        blocktime, total_transactions = result
         time_diff = current_time - blocktime
-        is_within_24_hours = time_diff <= timedelta(hours=24)
-        status = "FRESH" if is_within_24_hours else "OLD"
-
+        is_within_24_hours = time_diff <= timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))
+        holder['status'] = "FRESH" if is_within_24_hours else "OLD"
+        # checking wallet transactions_count from DB - if transactions_count not none, increment transactions
+        holder['transactions_count'] = total_transactions
         hours_diff = time_diff.total_seconds() / 3600
 
         LOGGER.info(f"First transfer block time for holder {holder}: {blocktime} "
                     f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
 
-        return_holder_status = f"{holder} - {status}"
-
-    if status != "FRESH" and wallet_repo is not None:
-        wallet_repo.insert_new_wallet_entry(holder, status)
-
-    return return_holder_status
+    if wallet_repo is not None and holder['status'] != "UNKNOWN":
+        if wallet_entry is None:
+            wallet_repo.insert_new_wallet_entry(holder)
+        else:
+            wallet_repo.update_wallet_entry(holder)
+    return holder
 
 
 # Function to process files and update the JSON based on transfer times
@@ -131,7 +134,8 @@ def multiprocess_coin_holders(coin_data: CoinData) -> CoinData:
     total_holders_count = len(coin_data['holders'])
     print(f"Assessing {total_holders_count} holder wallet addresses..")
 
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() - 2) as pool:
+    with multiprocessing.Pool(processes=multiprocessing.cpu_count()
+                                        - int(os.getenv('RESERVED_CPUS'))) as pool:
         updated_holders = pool.map(check_holder, coin_data['holders'])
 
     # Update the holders in the original JSON data
