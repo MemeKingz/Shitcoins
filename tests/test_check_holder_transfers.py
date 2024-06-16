@@ -5,9 +5,10 @@ import psycopg2
 import psycopg2.extras
 
 from shitcoins.check_holder_transfers import multiprocess_coin_holders, check_holder
-from shitcoins.coin_data import CoinData
+from shitcoins.model.coin_data import CoinData
 from shitcoins.database.table.wallet_repository import WalletRepository
-from shitcoins.holder import Holder
+from shitcoins.model.holder import Holder
+from shitcoins.model.market_info import MarketInfo
 
 
 class TestCheckHolderTransfers(unittest.TestCase):
@@ -27,6 +28,9 @@ class TestCheckHolderTransfers(unittest.TestCase):
                                                            transactions_count=0)
         self.pump_address = "BE2BzgHTA8UHfAUESULgBcipEtKQqRinhxwT8v69pump"
 
+        self.holders = [self.expected_holder_addr_danger,
+                                 self.expected_holder_addr_old2,
+                                 self.expected_holder_addr_old]
         self.holder_addresses = [self.expected_holder_addr_danger['address'],
                                  self.expected_holder_addr_old2['address'],
                                  self.expected_holder_addr_old['address']]
@@ -45,7 +49,10 @@ class TestCheckHolderTransfers(unittest.TestCase):
         Basic test without db to see that multiprocess_coin_holders succeeds with old and skipped addresses
         """
         os.environ['RUN_WITH_DB'] = 'false'
-        coin_data: CoinData = multiprocess_coin_holders(self.pump_address, self.holder_addresses)
+        coin_data: CoinData = CoinData(coin_address=self.pump_address,
+                                       market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
+                                       holders=self.holders)
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(3, len(coin_data['holders']))
         self.assertEqual('369s8C1BTaMFRbyKtEfhjPV3d1N9t2VFV7Am3Q549Asi', coin_data['holders'][2]['address'])
@@ -54,9 +61,8 @@ class TestCheckHolderTransfers(unittest.TestCase):
     def test_multiprocess_coin_holders_identifies_skip_based_on_skip_threshold(self):
         os.environ['SKIP_THRESHOLD'] = '50'
         os.environ['RUN_WITH_DB'] = 'false'
-
-        coin_data: CoinData = multiprocess_coin_holders(self.pump_address,
-                                                        [self.expected_holder_addr_skipped['address']])
+        coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_skipped])
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(1, len(coin_data['holders']))
         self.assertEqual('SKIPPED', coin_data['holders'][0]['status'])
 
@@ -67,8 +73,10 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['RUN_WITH_DB'] = 'true'
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
-        coin_data: CoinData = multiprocess_coin_holders(self.pump_address,
-                                                        [self.expected_holder_addr_unknown['address']])
+        coin_data: CoinData = CoinData(coin_address=self.pump_address,
+                                       market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
+                                       holders=[self.expected_holder_addr_unknown])
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(1, len(coin_data['holders']))
         self.assertEqual('UNKNOWN', coin_data['holders'][0]['status'])
 
@@ -84,8 +92,10 @@ class TestCheckHolderTransfers(unittest.TestCase):
         # check items are in db as
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
-
-        coin_data: CoinData = multiprocess_coin_holders(self.pump_address, self.holder_addresses)
+        coin_data: CoinData = CoinData(coin_address=self.pump_address,
+                                       market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
+                                       holders=self.holders)
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(3, len(coin_data['holders']))
         self.assertEqual('OLD', coin_data['holders'][2]['status'])
@@ -109,7 +119,10 @@ class TestCheckHolderTransfers(unittest.TestCase):
         wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_old)
         wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_old2)
         wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_danger)
-        coin_data: CoinData = multiprocess_coin_holders(self.pump_address, self.holder_addresses)
+        coin_data: CoinData = CoinData(coin_address=self.pump_address,
+                                       market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
+                                       holders=self.holders)
+        coin_data: CoinData = multiprocess_coin_holders(coin_data)
 
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(3, len(coin_data['holders']))
@@ -122,13 +135,13 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['RUN_WITH_DB'] = 'true'
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
-        check_holder(self.expected_holder_addr_fresh['address'])
+        check_holder(self.expected_holder_addr_fresh)
         result = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
         self.assertEqual(self.expected_holder_addr_fresh['address'], result['address'])
         self.assertEqual("FRESH", result['status'])
 
         self.assertTrue(result['transactions_count'] > 0)
-        check_holder(self.expected_holder_addr_fresh['address'])
+        check_holder(self.expected_holder_addr_fresh)
         result_second_run = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
         self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
 
