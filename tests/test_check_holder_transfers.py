@@ -20,8 +20,6 @@ class TestCheckHolderTransfers(unittest.TestCase):
                                                         status='OLD', transactions_count=0)
         self.expected_holder_addr_skipped: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
                                                            status='SKIPPED', transactions_count=0)
-        self.expected_holder_addr_skipped: Holder = Holder(address='716gAK3yUXGsB6CQbUw6Yr26neWa4TzZePdYHN299ANd',
-                                                        status='SKIPPED', transactions_count=0)
         self.expected_holder_addr_fresh: Holder = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt',
                                                          status='FRESH', transactions_count=0)
         self.expected_holder_addr_unknown: Holder = Holder(address='bad address', status='UNKNOWN',
@@ -104,6 +102,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(self.expected_holder_addr_old['address'], holder_old['address'])
         self.assertEqual('OLD', holder_old['status'])
 
+        os.environ['SKIP_THRESHOLD'] = '50'
         holder_skipped = wallet_repo.get_wallet_entry(self.expected_holder_addr_skipped['address'])
         self.assertEqual(self.expected_holder_addr_skipped['address'], holder_skipped['address'])
         self.assertEqual('SKIPPED', holder_skipped['status'])

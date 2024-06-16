@@ -41,7 +41,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
     max_trns_per_req = 50
     total_transactions = 0
     # query transactions till 2 days ago
-    to_time_ordinal = (datetime.now(timezone.utc).date() - timedelta(2)).toordinal()
+    start_time_ts = int((current_time - timedelta(days=2)).timestamp())
 
     while True:
         if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
@@ -50,7 +50,8 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
             return "SKIPPED"
 
         url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
-               f"&limit={max_trns_per_req}&toTime={to_time_ordinal}&offset={total_transactions}")
+               f"&limit={max_trns_per_req}&toTime={int(current_time.timestamp())}&fromTime={start_time_ts}"
+               f"&offset={total_transactions}")
         headers = {
             'accept': 'application/json',
             'token': API_KEY
