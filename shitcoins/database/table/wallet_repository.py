@@ -23,14 +23,14 @@ class WalletRepository(Table):
         return super()._get_entry_by_key(self.name, "address", holder_address)
 
     def update_wallet_entry(self, holder: Holder):
-            """
-            Updates entries in wallet table according to provided statement
-            :param holder: new holder instance to update existing transactions_count and status
-            """
-            update_statement = (f"transactions_count = {holder['transactions_count']} "
-                                f", status = '{holder['status']}' "
-                                f"WHERE address = '{holder['address']}'")
-            super()._update_table(self.name, update_statement)
+        """
+        Updates entries in wallet table according to provided statement
+        :param holder: new holder instance to update existing transactions_count and status
+        """
+        update_statement = (f"transactions_count = {holder['transactions_count']} "
+                            f", status = '{holder['status']}' "
+                            f"WHERE address = '{holder['address']}'")
+        super()._update_table(self.name, update_statement)
 
     def get_average_transactions_count_for_fresh_wallet(self) -> float:
         query = """
@@ -55,4 +55,3 @@ class WalletRepository(Table):
         Clear all entries in the wallet table
         """
         super()._truncate_table('wallet')
-#

@@ -15,7 +15,9 @@ The app can run without a database by setting an environment variable in .env.
 Instantiate a postgres docker instance with (in the docker directory):
 `docker build -t wallet-db:latest .`
 `docker run -d -p 5333:5432 -e POSTGRES_USER=bottas -e POSTGRES_HOST_AUTH_METHOD=trust --name wallet-db wallet-db:latest`
-Unit test db
+
+### Testing
+Some tests require a test database to run:
 `docker run -d -p 5332:5432 -e POSTGRES_USER=tests -e POSTGRES_HOST_AUTH_METHOD=trust --name test-wallet-db wallet-db:latest`
 
 ### How to check database records

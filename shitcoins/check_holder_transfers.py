@@ -1,16 +1,18 @@
+from __future__ import annotations
+
 import logging
 import multiprocessing
 import os
 import json
 import re
 from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
 import requests
 import psycopg2
 import psycopg2.extras
 from shitcoins.coin_data import CoinData, Holder
 from shitcoins.database.table.wallet_repository import WalletRepository
-import asyncio
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,8 +21,6 @@ load_dotenv()
 API_KEY = os.getenv('SOLSCAN_API_KEY')
 SKIP_THRESHOLD = int(os.getenv('SKIP_THRESHOLD', 200))
 RESERVED_CPUS = int(os.getenv('RESERVED_CPUS'))
-
-#MIN_HOLDERS_COUNT = 50
 
 if not API_KEY:
     raise ValueError("API key not found. Please set it in the .env file.")
@@ -33,10 +33,10 @@ def is_valid_solana_address(address):
     return bool(solana_address_pattern.match(address))
 
 
-def get_first_transfer_time(holder_address: str, current_time: datetime) -> str | datetime | None:
+def get_first_transfer_time(holder_address: str, current_time: datetime) -> None | str | tuple[datetime, int]:
     if not is_valid_solana_address(holder_address):
         LOGGER.info(f"Invalid Solana address: {holder_address}")
-        return
+        return "UNKNOWN"
 
     limit = 50
     last_tx_hash = ""
@@ -77,15 +77,15 @@ def get_first_transfer_time(holder_address: str, current_time: datetime) -> str 
                 break
         elif response.status_code == 504:
             LOGGER.warning(f"504 error - skipped address: {holder_address}")
-            return "SKIPPED"
+            return "UNKNOWN"
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
             break
 
-    return None
+    return "UNKNOWN"
 
 
-def check_holder(holder_address) -> Holder:
+def check_holder(holder_address: str) -> Holder:
     LOGGER.info(f"Processing holder: {holder_address}")
 
     wallet_repo = None
@@ -99,7 +99,7 @@ def check_holder(holder_address) -> Holder:
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_entry = wallet_repo.get_wallet_entry(holder_address)
         # prematurally return if holder address is not fresh to save api request and time
-        if wallet_entry is not None and wallet_entry['status'] != 'FRESH':
+        if wallet_entry is not None and wallet_entry['status'] == 'OLD' and wallet_entry['status'] == 'SKIPPED':
             return Holder(address=holder_address, status=wallet_entry['status'],
                           transactions_count=wallet_entry['transactions_count'])
 
@@ -121,8 +121,8 @@ def check_holder(holder_address) -> Holder:
         LOGGER.info(f"First transfer block time for holder {holder_address}: {blocktime} "
                     f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
 
-    if wallet_repo is not None:
-        if wallet_entry is None and return_holder['status'] != "UNKNOWN":
+    if wallet_repo is not None and return_holder['status'] != "UNKNOWN":
+        if wallet_entry is None:
             wallet_repo.insert_new_wallet_entry(return_holder)
         else:
             wallet_repo.update_wallet_entry(return_holder)
@@ -157,4 +157,3 @@ def multiprocess_coin_holders(pump_address: str, holder_addresses: [str]) -> Coi
     coin_data = {'coin_address': pump_address, 'holders': updated_holders}
 
     return coin_data
-

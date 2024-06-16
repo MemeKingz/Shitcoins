@@ -14,6 +14,7 @@ def is_valid_solana_address(address):
     """Check if the address matches the Solana address pattern."""
     return bool(solana_address_pattern.match(address))
 
+
 def get_holders(token_address):
     api_key = os.getenv('SOLSCAN_API_KEY')
     if not api_key:
@@ -49,6 +50,4 @@ def get_holders(token_address):
     if len(holder_addresses) < min_holders_required:
         print(f"Token {token_address} has less than {min_holders_required} holders.")
         return []
-
     return holder_addresses
-
