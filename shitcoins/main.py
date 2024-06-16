@@ -9,7 +9,6 @@ from check_holder_transfers import multiprocess_coin_holders
 from telegram_alert import alert
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
@@ -28,7 +27,7 @@ async def main():
             print(f"Getting holder addresses for {pump_address}")
             holder_addresses = get_holders(pump_address)
 
-            if len(holder_addresses) >= 50:
+            if len(holder_addresses) >= int(os.getenv('MIN_HOLDER_COUNT')):
                 address_data = {
                     "coin address": pump_address,
                     "holders": holder_addresses
@@ -39,10 +38,8 @@ async def main():
             else:
                 print(f"Skipped {pump_address} with only {len(holder_addresses)} addresses.")
 
-            coin_data_with_updated_holders = multiprocess_coin_holders(pump_address,
-                                                                       holder_addresses)
+            coin_data_with_updated_holders = multiprocess_coin_holders(pump_address, holder_addresses)
 
-            # Write the updated data back to the JSON file
             with open(f'coins/{pump_address}.json', 'w') as json_file:
                 try:
                     json.dump(coin_data_with_updated_holders, json_file, indent=4)
