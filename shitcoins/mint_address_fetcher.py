@@ -62,7 +62,7 @@ class MintAddressFetcher:
 
             if response.status_code == 200:
                 data = response.json()
-                if data is None or 'pairs' not in data:
+                if data['pairs'] is None:
                     LOGGER.error(f"dexscreener did not return market info for {addresses}")
                     continue
 
