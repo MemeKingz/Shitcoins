@@ -66,6 +66,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f"Market cap: {market_cap_formatted}\n"
                 f"Price: {price_formatted}\n"
                 f"Liquidity: {liquidity_formatted}\n"
+                f"Market cap: {coin_data['suspect_bundled']}\n"
                 f'Analyzed addresses: {total_addresses}\n'
                 f'Fresh addresses: {fresh_addresses}\n'
                 f'Skipped addresses: {skipped_addresses}\n'

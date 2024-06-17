@@ -46,56 +46,50 @@ class MintAddressFetcher:
 
     def check_if_coin_is_bundled(self, coin_address: str) -> bool:
         """
-        Determine if a coin is bundled by checking if its latest and 20th transactions have the same timestamp
+        Determine if a coin is bundled by checking if its latest and 10th transactions have the same timestamp
         On errors determining this, assume it is not bundled
         :param coin_address
         :return boolean True if bundled, False if not
         """
         max_transactions_per_request = 10
-        total_transactions = 0
-        first_transaction_timestamp = 0
 
-        while True:
-            url = (f"https://pro-api.solscan.io/v1.0/token/transfer?tokenAddress={coin_data['coin_address']}"
-                   f"&limit={max_transactions_per_request}&offset={total_transactions}")
-            headers = {
-                'accept': 'application/json',
-                'token': API_KEY
-            }
+        url = (f"https://pro-api.solscan.io/v1.0/token/transfer?tokenAddress={coin_address}"
+               f"&limit={max_transactions_per_request}")
+        headers = {
+            'accept': 'application/json',
+            'token': API_KEY
+        }
 
-            response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers)
 
-            if response.status_code == 200:
-                try:
-                    data = response.json()['items']
-                    if not data:
-                        return False
-
-                    if first_transaction_timestamp == 0:
-                        first_transaction_timestamp = (datetime.fromtimestamp(data[0]['blockTime'],
-                                                                              tz=timezone.utc)
-                                                .replace(microsecond=0))
-                    else:
-                        earlier_transaction_timestamp = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'],
-                                                                                tz=timezone.utc)
-                                                .replace(microsecond=0))
-                        if earlier_transaction_timestamp == first_transaction_timestamp:
-                            return True
-                        else:
-                            return False
-
-
-                except json.JSONDecodeError as e:
-                    LOGGER.error(f"JSON decode error: {e}")
+        if response.status_code == 200:
+            try:
+                data = response.json()['items']
+                if not data:
                     return False
-            elif response.status_code == 504:
-                LOGGER.error(f"504 error - unknown  coin address: {coin_data['coin_address']}")
-                return False
-            else:
-                LOGGER.error(f"Error: {response.status_code} - {response.text}")
-                return False
+
+                first_transaction_timestamp = (datetime.fromtimestamp(data[0]['blockTime'],
+                                                                      tz=timezone.utc)
+                                               .replace(microsecond=0))
+
+                earlier_transaction_timestamp = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'],
+                                                                        tz=timezone.utc)
+                                                 .replace(microsecond=0))
+                if earlier_transaction_timestamp == first_transaction_timestamp:
+                    return True
+                else:
+                    return False
 
 
+            except json.JSONDecodeError as e:
+                LOGGER.error(f"JSON decode error: {e}")
+                return False
+        elif response.status_code == 504:
+            LOGGER.error(f"504 error - unknown  coin address: {coin_address}")
+            return False
+        else:
+            LOGGER.error(f"Error: {response.status_code} - {response.text}")
+            return False
 
     def fetch_pump_address_info_dexscreener(self, pump_addresses: List[str]) -> Dict[str, MarketInfo]:
         address_to_market_info: Dict[str, MarketInfo] = {}
@@ -172,23 +166,22 @@ class MintAddressFetcher:
         await self.telegram_client.disconnect()
 
         new_addresses = [address for address in telegram_addresses_market_cap
-                        if address not in self.seen_addresses]
+                         if address not in self.seen_addresses]
         dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
 
         return_coins_data: List[CoinData] = []
         for new_address in new_addresses:
-            if self.check_if_coin_is_bundled(new_address):
-                LOGGER.warning(f"Detected {new_address} as bundled, skipping!")
-                continue
 
             if new_address in dexscreener_addr_to_market_info:
                 if MIN_MARKET_CAP <= dexscreener_addr_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
                     # ADD NEW ADDRESS THAT HAS MARKET_INFO DATA (POST-MIGRATION)
                     return_coins_data.append(CoinData(coin_address=new_address,
+                                                      suspect_bundled=self.check_if_coin_is_bundled(new_address),
                                                       market_info=dexscreener_addr_to_market_info[new_address],
                                                       holders=[]))
             elif MIN_MARKET_CAP <= telegram_addresses_market_cap[new_address] <= MAX_MARKET_CAP:
-                LOGGER.warning(f"cannot determine market value for new coin {new_address}; skipping cause pre-migration")
+                LOGGER.warning(
+                    f"cannot determine market value for new coin {new_address}; skipping cause pre-migration")
                 # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
                 # IGNORE PRE-MIGRATION COINS
                 # return_coins_data.append(CoinData(coin_address=new_address,

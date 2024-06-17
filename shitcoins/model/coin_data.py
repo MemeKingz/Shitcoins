@@ -9,3 +9,4 @@ class CoinData(TypedDict):
     coin_address: str
     market_info: MarketInfo
     holders: List[Holder]
+    suspect_bundled: bool
