@@ -41,18 +41,16 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
 
     max_trns_per_req = 50
     total_transactions = 0
-    # query transactions till 2 days ago
-    start_time_ts = int((current_time - timedelta(days=2)).timestamp())
 
     while True:
         if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
             LOGGER.info(f"Reached {int(os.getenv('SKIP_THRESHOLD', 200))} transactions for "
                         f"holder {holder_addr}, labelling as old.")
-            return "OLD"
+            # we know its old, so set a really old time
+            return (current_time - timedelta(days=10)), total_transactions
 
         url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
-               f"&limit={max_trns_per_req}&toTime={int(current_time.timestamp())}&fromTime={start_time_ts}"
-               f"&offset={total_transactions}")
+               f"&limit={max_trns_per_req}&offset={total_transactions}")
         headers = {
             'accept': 'application/json',
             'token': API_KEY
@@ -91,7 +89,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
             return "UNKNOWN"
         elif response.status_code == 429:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
-            time.sleep(int(os.getenv('TOO_MANY_REQUESTS_BACKOFF_SEC')))
+            time.sleep(int(os.getenv('TOO_MANY_REQUESTS_BACKOFF_SEC', 60)))
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
             return "UNKNOWN"
@@ -123,9 +121,7 @@ def check_holder(holder: Holder) -> Holder:
     current_time = datetime.now(timezone.utc)
     result = get_first_transfer_time_or_status(holder['address'], current_time)
 
-    if result == "OLD" or result == "BUNDLER":
-        holder['status'] = result
-    elif isinstance(result, tuple):
+    if isinstance(result, tuple):
         blocktime, total_transactions = result
         time_diff = current_time - blocktime
         is_within_24_hours = time_diff <= timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))
@@ -135,6 +131,8 @@ def check_holder(holder: Holder) -> Holder:
 
         LOGGER.info(f"First transfer block time for holder {holder}: {blocktime} "
                     f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
+    elif result == "OLD" or result == "BUNDLER":
+        holder['status'] = result
 
     if wallet_repo is not None and holder['status'] != "UNKNOWN":
         if wallet_entry is None:

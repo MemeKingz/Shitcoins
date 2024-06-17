@@ -18,8 +18,6 @@ class TestCheckHolderTransfers(unittest.TestCase):
                                                        status='OLD', transactions_count=0)
         self.expected_holder_addr_bundler: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
                                                            status='BUNDLER', transactions_count=0)
-        self.expected_holder_addr_fresh: Holder = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt',
-                                                         status='FRESH', transactions_count=0)
         self.expected_holder_addr_unknown: Holder = Holder(address='bad address', status='UNKNOWN',
                                                            transactions_count=0)
         self.pump_address = "BE2BzgHTA8UHfAUESULgBcipEtKQqRinhxwT8v69pump"
@@ -131,17 +129,18 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['FRESH_WALLET_HOURS'] = '10000000'
         os.environ['SKIP_THRESHOLD'] = '1000'
         os.environ['RUN_WITH_DB'] = 'true'
+        fresh_coin_data = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt', status='FRESH')
 
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
-        check_holder(self.expected_holder_addr_fresh)
-        result = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
-        self.assertEqual(self.expected_holder_addr_fresh['address'], result['address'])
+        check_holder(fresh_coin_data)
+        result = wallet_repo.get_wallet_entry(fresh_coin_data['address'])
+        self.assertEqual(fresh_coin_data['address'], result['address'])
         self.assertEqual("FRESH", result['status'])
 
         self.assertTrue(result['transactions_count'] > 0)
-        check_holder(self.expected_holder_addr_fresh)
-        result_second_run = wallet_repo.get_wallet_entry(self.expected_holder_addr_fresh['address'])
+        check_holder(fresh_coin_data)
+        result_second_run = wallet_repo.get_wallet_entry(fresh_coin_data['address'])
         self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
 
 
