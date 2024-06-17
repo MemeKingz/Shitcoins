@@ -63,6 +63,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             message = (
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
+                f"Name: {coin_data['market_info']['token_name']}\n"
                 f"Market cap: {market_cap_formatted}\n"
                 f"Price: {price_formatted}\n"
                 f"Liquidity: {liquidity_formatted}\n"

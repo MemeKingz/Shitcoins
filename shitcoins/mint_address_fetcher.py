@@ -79,6 +79,7 @@ class MintAddressFetcher:
                 for addr, dex_metric in address_to_dex_metric.items():
                     market_cap = float(dex_metric['total_fdv'] / dex_metric['fdv_count'])
                     address_to_market_info[addr] = MarketInfo(market_cap=market_cap,
+                                                              token_name=dex_metric['token_name'],
                                                               liquidity=dex_metric['liquidity'],
                                                               price=dex_metric['price'])
                     LOGGER.info(f"Success: Calculated market info for {dex_metric['token_name']} "
