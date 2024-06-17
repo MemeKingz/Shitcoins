@@ -60,21 +60,38 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
             price_formatted = '${:f}'.format(coin_data['market_info']['price'])
-            message = (
-                f'🔥 INSIDER ALERT 🔥\n'
-                f'Coin address: \n\n{coin_address}\n\n'
-                f"Name: {coin_data['market_info']['token_name']}\n"
-                f"Suspected bundled: {coin_data['suspect_bundled']}\n"
-                f"Market cap: {market_cap_formatted}\n"
-                f"Price: {price_formatted}\n"
-                f"Liquidity: {liquidity_formatted}\n"
-                f'Analyzed holders: {total_addresses}\n'
-                f'Fresh holders: {fresh_addresses}\n'
-                f'Old holders: {old_addresses}\n'
-                f'Percentage of fresh holders: {percent_fresh:.2f}%\n'
-                f'Percentage of old holders: {percent_old:.2f}%'
-                f'Percentage of bundler holders: {percent_bundler:.2f}%'
-            )
+            message_parts = []
+
+            try:
+                message_parts.append(f'🔥{coin_data["market_info"]["token_name"]}🔥')
+            except KeyError:
+                message_parts.append(f'🔥NAME NOT AVAILABLE🔥')
+
+            message_parts.append(f'Coin address: \n\n{coin_address}\n\n')
+
+            try:
+                message_parts.append(f"Market cap: {market_cap_formatted}")
+            except KeyError:
+                pass
+
+            try:
+                message_parts.append(f"Price: {price_formatted}")
+            except KeyError:
+                pass
+
+            try:
+                message_parts.append(f"Liquidity: {liquidity_formatted}")
+            except KeyError:
+                pass
+
+            message_parts.extend([
+                f'Analyzed addresses: {total_addresses}',
+                f'Fresh addresses: {fresh_addresses} ({percent_fresh:.2f}%)',
+                f'Skipped addresses: {skipped_addresses} ({percent_skipped:.2f}%)',
+                f'Danger addresses: {danger_addresses} ({percent_danger:.2f}%)'
+            ])
+
+            message = '\n'.join(message_parts>>>>>> main
 
             print(message)
             print('-' * 40)

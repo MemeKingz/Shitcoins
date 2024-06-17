@@ -112,11 +112,10 @@ class MintAddressFetcher:
 
             if response.status_code == 200:
                 data = response.json()
-                if data is None or 'pairs' not in data:
+                if data['pairs'] is None:
                     LOGGER.error(f"dexscreener did not return market info for {addresses}")
                     continue
 
-                LOGGER.debug(data)
                 for pair in data['pairs']:
                     addr = pair['baseToken']['address']
                     if addr in address_to_dex_metric:
@@ -152,22 +151,22 @@ class MintAddressFetcher:
             text = message.text
             if text:
                 lines = text.split('\n')
+                potential_address = None
                 for line in lines:
                     if 'pump' in line:
                         potential_address = line.strip().strip('`')
                         if potential_address.endswith('pump'):
                             telegram_addresses_market_cap[potential_address] = 0
-
-                    # IGNORE SCRAPING MARKETCAP FROM TELEGRAM
-                    # if "Marketcap" in line:
-                    #     market_cap_str = line.split("$")[1].strip()
-                    #     try:
-                    #         market_cap = float( re.sub(r'[^\d.]', '', market_cap_str))
-                    #         if potential_address in telegram_addresses_market_cap:
-                    #             telegram_addresses_market_cap[potential_address] = market_cap
-                    #     except ValueError:
-                    #         LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
-                    #         continue
+                    if "Market Cap" in line:
+                        market_cap_str = line.split("$")[1].strip()
+                        try:
+                            market_cap = float(re.sub(r'[^\d.]', '', market_cap_str.replace('k', '000')
+                                                      .replace('K', '000')))
+                            if potential_address and potential_address in telegram_addresses_market_cap:
+                                telegram_addresses_market_cap[potential_address] = market_cap
+                        except ValueError:
+                            LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
+                            continue
 
         await self.telegram_client.disconnect()
 
@@ -185,15 +184,16 @@ class MintAddressFetcher:
                                                       suspect_bundled=self.check_if_coin_is_bundled(new_address),
                                                       market_info=dexscreener_addr_to_market_info[new_address],
                                                       holders=[]))
-            elif MIN_MARKET_CAP <= telegram_addresses_market_cap[new_address] <= MAX_MARKET_CAP:
-                LOGGER.warning(
-                    f"cannot determine market value for new coin {new_address}; skipping cause pre-migration")
+
+            else: 
+                LOGGER.warning(f"cannot determine market value for new coin {new_address}")
+                LOGGER.warning("using telegram market information instead")
                 # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
                 # IGNORE PRE-MIGRATION COINS
-                # return_coins_data.append(CoinData(coin_address=new_address,
-                #                                   market_info=MarketInfo(market_cap=telegram_addresses_market_cap[new_address],
-                #                                                          liquidity=0, price=0),
-                #                                   holders=[]))
+                return_coins_data.append(CoinData(coin_address=new_address,
+                                                   market_info=MarketInfo(market_cap=
+                                                                          telegram_addresses_market_cap[new_address],
+                                                                          liquidity=0, price=0),holders=[]))
 
         self.seen_addresses.extend(new_addresses)
         self.seen_addresses = list(set(self.seen_addresses))
