@@ -45,15 +45,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
             skipped_addresses = sum(1 for holder in holders if holder['status'] == 'SKIPPED')
-            danger_addresses = sum(1 for holder in holders if holder['status'] == 'DANGER')
+            bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
 
             percent_fresh = 0
             percent_skipped = 0
-            percent_danger = 0
+            percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
                 percent_skipped = (skipped_addresses / total_addresses) * 100
-                percent_danger = (danger_addresses / total_addresses) * 100
+                percent_bundler = (bundler_addresses / total_addresses) * 100
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
@@ -64,15 +64,16 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f'🔥 INSIDER ALERT 🔥\n'
                 f'Coin address: \n\n{coin_address}\n\n'
                 f"Name: {coin_data['market_info']['token_name']}\n"
+                f"Suspected bundled: {coin_data['suspect_bundled']}\n"
                 f"Market cap: {market_cap_formatted}\n"
                 f"Price: {price_formatted}\n"
                 f"Liquidity: {liquidity_formatted}\n"
-                f"Market cap: {coin_data['suspect_bundled']}\n"
-                f'Analyzed addresses: {total_addresses}\n'
-                f'Fresh addresses: {fresh_addresses}\n'
-                f'Skipped addresses: {skipped_addresses}\n'
-                f'Percentage of fresh addresses: {percent_fresh:.2f}%\n'
-                f'Percentage of skipped addresses: {percent_skipped:.2f}%'
+                f'Analyzed holders: {total_addresses}\n'
+                f'Fresh holders: {fresh_addresses}\n'
+                f'Skipped holders: {skipped_addresses}\n'
+                f'Percentage of fresh holders: {percent_fresh:.2f}%\n'
+                f'Percentage of skipped holders: {percent_skipped:.2f}%'
+                f'Percentage of bundler holders: {percent_bundler:.2f}%'
             )
 
             print(message)
