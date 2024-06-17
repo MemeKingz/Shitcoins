@@ -40,7 +40,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders(self):
         """
-        Basic test without db to see that multiprocess_coin_holders succeeds with old and skipped addresses
+        Basic test without db to see that multiprocess_coin_holders succeeds with old addresses
         """
         os.environ['RUN_WITH_DB'] = 'false'
         coin_data: CoinData = CoinData(coin_address=self.pump_address,
@@ -59,7 +59,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_old])
         coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(1, len(coin_data['holders']))
-        self.assertEqual('SKIPPED', coin_data['holders'][0]['status'])
+        self.assertEqual('OLD', coin_data['holders'][0]['status'])
 
     def test_multiprocess_coin_holders_identifies_bundler(self):
         os.environ['RUN_WITH_DB'] = 'false'

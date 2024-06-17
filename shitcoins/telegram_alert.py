@@ -22,7 +22,7 @@ def send_telegram_message(message, bot_token, chat_id):
     return response
 
 
-# Function to calculate fresh and skipped percentages and send Telegram alerts
+# Function to calculate fresh and old percentages and send Telegram alerts
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
@@ -44,15 +44,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
-            skipped_addresses = sum(1 for holder in holders if holder['status'] == 'SKIPPED')
+            old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
             bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
 
             percent_fresh = 0
-            percent_skipped = 0
+            percent_old = 0
             percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
-                percent_skipped = (skipped_addresses / total_addresses) * 100
+                percent_old = (old_addresses / total_addresses) * 100
                 percent_bundler = (bundler_addresses / total_addresses) * 100
 
             # Extract coin address from the filename (assuming filename is the coin address)
@@ -70,9 +70,9 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 f"Liquidity: {liquidity_formatted}\n"
                 f'Analyzed holders: {total_addresses}\n'
                 f'Fresh holders: {fresh_addresses}\n'
-                f'Skipped holders: {skipped_addresses}\n'
+                f'Old holders: {old_addresses}\n'
                 f'Percentage of fresh holders: {percent_fresh:.2f}%\n'
-                f'Percentage of skipped holders: {percent_skipped:.2f}%'
+                f'Percentage of old holders: {percent_old:.2f}%'
                 f'Percentage of bundler holders: {percent_bundler:.2f}%'
             )
 

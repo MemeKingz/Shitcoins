@@ -97,6 +97,6 @@ class Table:
         """
         updates values of table
         :param table_name name of table
-        :param update_statement: the variable to be updated i.e. "status = 'SKIPPED' WHERE address = 'abc'"
+        :param update_statement: the variable to be updated i.e. "status = 'OLD' WHERE address = 'abc'"
         """
         self._cursor.execute(f"UPDATE {table_name} SET {update_statement}")

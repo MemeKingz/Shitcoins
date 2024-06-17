@@ -47,8 +47,8 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
     while True:
         if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
             LOGGER.info(f"Reached {int(os.getenv('SKIP_THRESHOLD', 200))} transactions for "
-                        f"holder {holder_addr}, skipping.")
-            return "SKIPPED"
+                        f"holder {holder_addr}, labelling as old.")
+            return "OLD"
 
         url = (f"https://pro-api.solscan.io/v1.0/account/solTransfers?account={holder_addr}"
                f"&limit={max_trns_per_req}&toTime={int(current_time.timestamp())}&fromTime={start_time_ts}"
@@ -115,7 +115,6 @@ def check_holder(holder: Holder) -> Holder:
         wallet_entry = wallet_repo.get_wallet_entry(holder['address'])
         # prematurely return if holder address is not fresh to save api request and time
         if wallet_entry is not None and (wallet_entry['status'] == 'OLD'
-                                         or wallet_entry['status'] == 'SKIPPED'
                                          or wallet_entry['status'] == 'BUNDLER'):
             holder['status'] = wallet_entry['status']
             holder['transactions_count'] = wallet_entry['transactions_count']
@@ -124,7 +123,7 @@ def check_holder(holder: Holder) -> Holder:
     current_time = datetime.now(timezone.utc)
     result = get_first_transfer_time_or_status(holder['address'], current_time)
 
-    if result == "SKIPPED" or result == "BUNDLER":
+    if result == "OLD" or result == "BUNDLER":
         holder['status'] = result
     elif isinstance(result, tuple):
         blocktime, total_transactions = result
