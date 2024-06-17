@@ -73,10 +73,10 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
                                           .replace(microsecond=0))
                 last_tx_hash = data[-1]['txHash']
 
-                # check for snipers and if timestamps of first and last are the same
+                # check for bundlers and if timestamps of first and last are the same
                 if total_transactions <= max_trns_per_req:
                     if latest_transfer_time == earliest_transfer_time:
-                        return "SKIPPED"
+                        return "BUNDLER"
 
                 # check for fresh/old
                 if (len(data) < max_trns_per_req or current_time - latest_transfer_time
@@ -124,7 +124,7 @@ def check_holder(holder: Holder) -> Holder:
     current_time = datetime.now(timezone.utc)
     result = get_first_transfer_time_or_status(holder['address'], current_time)
 
-    if result == "SKIPPED" or result == "DANGER":
+    if result == "SKIPPED" or result == "BUNDLER":
         holder['status'] = result
     elif isinstance(result, tuple):
         blocktime, total_transactions = result
