@@ -66,7 +66,6 @@ class MintAddressFetcher:
                     LOGGER.error(f"dexscreener did not return market info for {addresses}")
                     continue
 
-                LOGGER.debug(data)
                 for pair in data['pairs']:
                     addr = pair['baseToken']['address']
                     if addr in address_to_dex_metric:
