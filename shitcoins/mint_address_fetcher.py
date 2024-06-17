@@ -62,10 +62,11 @@ class MintAddressFetcher:
 
             if response.status_code == 200:
                 data = response.json()
-                if 'pairs' not in data:
+                if data is None or 'pairs' not in data:
                     LOGGER.error(f"dexscreener did not return market info for {addresses}")
                     continue
 
+                LOGGER.debug(data)
                 for pair in data['pairs']:
                     addr = pair['baseToken']['address']
                     if addr in address_to_dex_metric:
