@@ -87,7 +87,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_added_to_db(self):
         """
-        Test if multiprocess_coin_holders adds OLD and DANGER to database
+        Test if multiprocess_coin_holders adds OLD and BUNDLER to database
         """
         os.environ['RUN_WITH_DB'] = 'true'
 

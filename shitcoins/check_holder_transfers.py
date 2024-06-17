@@ -116,7 +116,7 @@ def check_holder(holder: Holder) -> Holder:
         # prematurely return if holder address is not fresh to save api request and time
         if wallet_entry is not None and (wallet_entry['status'] == 'OLD'
                                          or wallet_entry['status'] == 'SKIPPED'
-                                         or wallet_entry['status'] == 'DANGER'):
+                                         or wallet_entry['status'] == 'BUNDLER'):
             holder['status'] = wallet_entry['status']
             holder['transactions_count'] = wallet_entry['transactions_count']
             return holder
