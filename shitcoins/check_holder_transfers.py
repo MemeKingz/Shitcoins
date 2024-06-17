@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import json
 import re
+import time
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -88,9 +89,12 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         elif response.status_code == 504:
             LOGGER.error(f"504 error - unknown address: {holder_addr}")
             return "UNKNOWN"
+        elif response.status_code == 429:
+            LOGGER.error(f"Error: {response.status_code} - {response.text}")
+            time.sleep(int(os.getenv('TOO_MANY_REQUESTS_BACKOFF_SEC')))
         else:
             LOGGER.error(f"Error: {response.status_code} - {response.text}")
-            break
+            return "UNKNOWN"
 
     return "UNKNOWN"
 
