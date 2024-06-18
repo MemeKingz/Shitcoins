@@ -46,7 +46,6 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
             old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
             bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
-
             percent_fresh = 0
             percent_old = 0
             percent_bundler = 0
@@ -57,6 +56,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
+
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
             price_formatted = '${:f}'.format(coin_data['market_info']['price'])
@@ -68,7 +68,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 message_parts.append(f'🔥NAME NOT AVAILABLE🔥')
 
             message_parts.append(f'Coin address: \n\n{coin_address}\n\n')
-
+            message_parts.append(str(coin_data.get('suspect_bundled', 'N/A')))
             try:
                 message_parts.append(f"Market cap: {market_cap_formatted}")
             except KeyError:
@@ -87,11 +87,11 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             message_parts.extend([
                 f'Analyzed addresses: {total_addresses}',
                 f'Fresh addresses: {fresh_addresses} ({percent_fresh:.2f}%)',
-                f'Skipped addresses: {skipped_addresses} ({percent_skipped:.2f}%)',
-                f'Danger addresses: {danger_addresses} ({percent_danger:.2f}%)'
+                f'Old addresses: {old_addresses} ({percent_old:.2f}%)',
+                f'Bundler addresses: {bundler_addresses} ({percent_bundler:.2f}%)'
             ])
 
-            message = '\n'.join(message_parts>>>>>> main
+            message = '\n'.join(message_parts)
 
             print(message)
             print('-' * 40)
@@ -101,3 +101,4 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 response = send_telegram_message(message, bot_token, chat_id)
                 if debug:
                     print(f'Telegram response: {response.text}')
+
