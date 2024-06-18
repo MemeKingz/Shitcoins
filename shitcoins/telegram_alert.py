@@ -44,61 +44,48 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
-            old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
-            bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
+            #old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
+            #bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
+
             percent_fresh = 0
-            percent_old = 0
-            percent_bundler = 0
+            #percent_old = 0
+            #percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
-                percent_old = (old_addresses / total_addresses) * 100
-                percent_bundler = (bundler_addresses / total_addresses) * 100
+                #percent_old = (old_addresses / total_addresses) * 100
+                #percent_bundler = (bundler_addresses / total_addresses) * 100
 
-            # Extract coin address from the filename (assuming filename is the coin address)
             coin_address = os.path.splitext(filename)[0]
 
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
-            price_formatted = '${:f}'.format(coin_data['market_info']['price'])
-            message_parts = []
+            #price_formatted = '${:f}'.format(coin_data['market_info']['price'])
 
-            try:
-                message_parts.append(f'🔥{coin_data["market_info"]["token_name"]}🔥')
-            except KeyError:
-                message_parts.append(f'🔥NAME NOT AVAILABLE🔥')
+            message = [
+                f'<strong>{coin_data["market_info"]["token_name"]}</strong>',
+                '',
+                f'<code>{coin_address}</code>',
+                '',
+                f"🚀Market Cap: <strong>{market_cap_formatted}</strong>",
+                f"💦Liquidity: <strong>{liquidity_formatted}</strong>",
+                f"🕗Token Age: <strong>N/A</strong>",
+                f"👥Holders: <strong>{total_addresses}</strong>",
+                f"👀Fresh: <strong>{fresh_addresses}</strong> - <strong>({percent_fresh:.2f}%)</strong>",
+                f'⛳Bundled: <strong>{"Yes" if coin_data.get("suspect_bundled") else "No"}</strong>',
+                '',
+                f'🐤Twitter: <a href="http://www.twitter.com/">Link goes here</a>',
+                f'🌎Website: <a href="http://www.pornhub.com/">Link goes here</a>',
+                f'📬Telegram: <a href="http://www.telegram.com/">Link goes here</a>',
+                ''
+            ]
 
-            message_parts.append(f'Coin address: \n\n{coin_address}\n\n')
-            message_parts.append(str(coin_data.get('suspect_bundled', 'N/A')))
-            try:
-                message_parts.append(f"Market cap: {market_cap_formatted}")
-            except KeyError:
-                pass
+            alert = '\n'.join(message)
 
-            try:
-                message_parts.append(f"Price: {price_formatted}")
-            except KeyError:
-                pass
-
-            try:
-                message_parts.append(f"Liquidity: {liquidity_formatted}")
-            except KeyError:
-                pass
-
-            message_parts.extend([
-                f'Analyzed addresses: {total_addresses}',
-                f'Fresh addresses: {fresh_addresses} ({percent_fresh:.2f}%)',
-                f'Old addresses: {old_addresses} ({percent_old:.2f}%)',
-                f'Bundler addresses: {bundler_addresses} ({percent_bundler:.2f}%)'
-            ])
-
-            message = '\n'.join(message_parts)
-
-            print(message)
+            print(alert)
             print('-' * 40)
 
-            # Send message to Telegram if percent_fresh is 10 or higher
             if bot_token and chat_id and percent_fresh >= SEND_PERCENT_THRESHOLD:
-                response = send_telegram_message(message, bot_token, chat_id)
+                response = send_telegram_message(alert, bot_token, chat_id)
                 if debug:
                     print(f'Telegram response: {response.text}')
 
