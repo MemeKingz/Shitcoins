@@ -190,7 +190,7 @@ class MintAddressFetcher:
                 if return_coins_data:
                     break
                 else:
-                    LOGGER.warning(f"Attempt {attempts} failed to find a coin within market cap range. Retrying in {DEX_DELAY_SEC} seconds.")
+                    LOGGER.warning(f"Attempt {attempts} failed to get market info. Retrying in {DEX_DELAY_SEC} seconds.")
                     await asyncio.sleep(DEX_DELAY_SEC)
 
         self.seen_addresses.extend(new_addresses)
