@@ -16,7 +16,8 @@ def send_telegram_message(message, bot_token, chat_id):
     payload = {
         'chat_id': chat_id,
         'text': message,
-        'parse_mode': 'HTML'
+        'parse_mode': 'HTML',
+        'disable_web_page_preview': True
     }
     response = requests.post(url, data=payload)
     return response
