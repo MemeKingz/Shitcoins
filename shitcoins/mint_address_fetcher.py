@@ -24,6 +24,8 @@ phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
 FETCH_LIMIT = int(os.getenv('FETCH_LIMIT'))
 API_KEY = os.getenv('SOLSCAN_API_KEY')
+DEX_DELAY_SEC = int(os.getenv('DEX_DELAY_SEC'))
+DEX_RETRY_ATTEMPTS = int(os.getenv('DEX_RETRY_ATTEMPTS'))
 
 LOGGER = logging.getLogger(__name__)
 
@@ -171,7 +173,7 @@ class MintAddressFetcher:
         if new_addresses:
             attempts = 0
 
-            while attempts < 10:
+            while attempts < DEX_RETRY_ATTEMPTS:
                 attempts += 1
                 dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
 
@@ -188,8 +190,8 @@ class MintAddressFetcher:
                 if return_coins_data:
                     break
                 else:
-                    LOGGER.warning(f"Attempt {attempts} failed to find a coin within market cap range. Retrying in 15 seconds.")
-                    await asyncio.sleep(15)
+                    LOGGER.warning(f"Attempt {attempts} failed to find a coin within market cap range. Retrying in {DEX_DELAY_SEC} seconds.")
+                    await asyncio.sleep(DEX_DELAY_SEC)
 
         self.seen_addresses.extend(new_addresses)
         self.seen_addresses = list(set(self.seen_addresses))
