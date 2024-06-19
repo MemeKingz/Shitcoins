@@ -62,23 +62,71 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
             #price_formatted = '${:f}'.format(coin_data['market_info']['price'])
 
-            message = [
-                f'<strong>{coin_data["market_info"]["token_name"]}</strong>',
-                '',
-                f'<code>{coin_address}</code>',
-                '',
-                f"🚀Market Cap: <strong>{market_cap_formatted}</strong>",
-                f"💦Liquidity: <strong>{liquidity_formatted}</strong>",
-                f"🕗Token Age: <strong>N/A</strong>",
-                f"👥Holders: <strong>{total_addresses}</strong>",
-                f"👀Fresh: <strong>{fresh_addresses}</strong> - <strong>({percent_fresh:.2f}%)</strong>",
-                f'⛳Bundled: <strong>{"Yes" if coin_data.get("suspect_bundled") else "No"}</strong>',
-                '',
-                f'🐤Twitter: <a href="http://www.twitter.com/">Link goes here</a>',
-                f'🌎Website: <a href="http://www.pornhub.com/">Link goes here</a>',
-                f'📬Telegram: <a href="http://www.telegram.com/">Link goes here</a>',
-                ''
-            ]
+
+            message = []
+
+            try:
+                message.append(f'<strong>{coin_data["market_info"]["token_name"]}</strong>')
+            except KeyError:
+                message.append('<strong>N/A</strong>')
+
+            message.append('')
+
+            try:
+                message.append(f'<code>{coin_address}</code>')
+            except KeyError:
+                message.append('<code>N/A</code>')
+
+            message.append('')
+
+            try:
+                message.append(f"🚀Market Cap: <strong>{market_cap_formatted}</strong>")
+            except KeyError:
+                message.append("🚀Market Cap: <strong>N/A</strong>")
+
+            try:
+                message.append(f"💦Liquidity: <strong>{liquidity_formatted}</strong>")
+            except KeyError:
+                message.append("💦Liquidity: <strong>N/A</strong>")
+            #get token age data
+            try:
+                message.append(f"🕗Token Age: <strong>N/A</strong>")
+            except KeyError:
+                message.append(f"🕗Token Age: <strong>N/A</strong>")
+
+            try:
+                message.append(f"👥Holders: <strong>{total_addresses}</strong>")
+            except KeyError:
+                message.append("👥Holders: <strong>N/A</strong>")
+
+            try:
+                message.append(f"👀Fresh: <strong>{fresh_addresses} ({percent_fresh:.2f}%)</strong>")
+            except KeyError:
+                message.append("👀Fresh: <strong>N/A</strong>")
+
+            try:
+                message.append(f'⛳Bundled: <strong>{"Yes" if coin_data.get("suspect_bundled") else "No"}</strong>')
+            except KeyError:
+                message.append("⛳Bundled: <strong>N/A</strong>")
+
+            message.append('')
+            #get twitter link
+            try:
+                message.append('🐤Twitter: <a href="http://www.twitter.com/">N/A</a>')
+            except KeyError:
+                message.append('🐤Twitter: <a href="http://www.twitter.com/">N/A</a>')
+            #get website link
+            try:
+                message.append('🌎Website: <a href="http://www.pornhub.com/">N/A</a>')
+            except KeyError:
+                message.append('🌎Website: <a href="http://www.pornhub.com/">N/A</a>')
+            #get telegram channel link
+            try:
+                message.append('📬Telegram: <a href="http://www.telegram.com/">N/A</a>')
+            except KeyError:
+                message.append('📬Telegram: <a href="http://www.telegram.com/">N/A</a>')
+
+            message.append('')
 
             alert = '\n'.join(message)
 
