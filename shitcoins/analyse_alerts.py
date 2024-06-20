@@ -16,7 +16,7 @@ def get_market_cap_from_dexscreener(address):
         for pair in data.get('pairs', []):
             if address not in address_to_dex_metric:
                 address_to_dex_metric[address] = DexMetric(
-                    total_fdv=pair['fdv'],  # Fully Diluted Valuation
+                    total_fdv=pair['fdv'],
                     fdv_count=1,
                     liquidity=float(pair['liquidity']['usd']),
                     price=float(pair['priceUsd']),
@@ -57,7 +57,6 @@ def append_to_json_file(filepath, data):
             json.dump(data, file, indent=4)
 
 def analyse():
-    # Make the path absolute
     script_dir = os.path.dirname(os.path.abspath(__file__))
     json_folder = os.path.join(script_dir, 'alerts')
     results = []
@@ -98,15 +97,12 @@ def analyse():
                 print(f"Error parsing time {time_str} in file {filepath}. Skipping.")
                 continue
 
-            # Calculate the time 6 hours after the given time
-            time_6_hours_later = time + timedelta(seconds=6)
+            time_6_hours_later = time + timedelta(hours=6)
                 
-            # Check if the current time is past the time_6_hours_later
             if datetime.now() < time_6_hours_later:
                 print(f"Skipping {name}, will check after {time_6_hours_later}")
                 continue
                 
-            # Get the market cap from Dexscreener
             market_info = get_market_cap_from_dexscreener(address)
                 
             if market_info and address in market_info:
@@ -123,15 +119,13 @@ def analyse():
                 }
                 results.append(result)
 
-                # Delete the original JSON file
-
                 try:
                     os.remove(filepath)
                     print(f"Deleted file: {filepath}")
                 except Exception as e:
                     print(f"Error deleting file {filepath}: {e}")
 
-    # Write results to a JSON file with the current date as the name
     current_date = datetime.now().strftime('%Y-%m-%d')
     output_filepath = os.path.join(json_folder, f"{current_date}.json")
     append_to_json_file(output_filepath, results)
+

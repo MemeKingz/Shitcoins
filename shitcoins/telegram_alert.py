@@ -56,6 +56,10 @@ def analysis_report():
                     print(f"Skipping {report_filepath} because it contains an unsupported format.")
                     return
 
+            if not data_list:
+                print(f"No data in the report file {report_filepath}. Skipping Telegram message.")
+                return
+
             message = []
             message.append("<strong>DAILY REPORT</strong>")
             message.append("Alerts reviewed 6 hours post-channel posting.")
@@ -128,9 +132,7 @@ def check_time_and_send_report():
     if adelaide_time.hour >= 17 and not report_sent:
         analysis_report()
 
-
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
-
     output_dir = os.path.join(coins_dir, '..', 'alerts')
 
     for filename in os.listdir(coins_dir):
@@ -153,23 +155,16 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
-            #old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
-            #bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
-
+            
             percent_fresh = 0
-            #percent_old = 0
-            #percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
-                #percent_old = (old_addresses / total_addresses) * 100
-                #percent_bundler = (bundler_addresses / total_addresses) * 100
 
             coin_address = os.path.splitext(filename)[0]
 
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
             price_formatted = '${:f}'.format(coin_data['market_info']['price'])
-
 
             message = []
             name = ""
@@ -204,7 +199,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 liquidity = liquidity_formatted
             except KeyError:
                 message.append("💦Liquidity: <strong>N/A</strong>")
-            #get token age data
+
             try:
                 message.append(f"🕗Token Age: <strong>N/A</strong>")
             except KeyError:
@@ -226,17 +221,17 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 message.append("⛳Bundled: <strong>N/A</strong>")
 
             message.append('')
-            #get twitter link
+
             try:
                 message.append('🐤Twitter: <a href="http://www.twitter.com/">N/A</a>')
             except KeyError:
                 message.append('🐤Twitter: <a href="http://www.twitter.com/">N/A</a>')
-            #get website link
+
             try:
                 message.append('🌎Website: <a href="http://www.pornhub.com/">N/A</a>')
             except KeyError:
                 message.append('🌎Website: <a href="http://www.pornhub.com/">N/A</a>')
-            #get telegram channel link
+
             try:
                 message.append('📬Telegram: <a href="http://www.telegram.com/">N/A</a>')
             except KeyError:
@@ -246,32 +241,30 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             alert = '\n'.join(message)
 
-
             print(alert)
             print('-' * 40)
 
             if bot_token and chat_id and percent_fresh >= SEND_PERCENT_THRESHOLD:
-                #response = send_telegram_message(alert, bot_token, chat_id)
+                response = send_telegram_message(alert, bot_token, chat_id)
                 print("hello")
                 if debug:
-                    #print(f'Telegram response: {response.text}')
-                    print("hello")
+                    print(f'Telegram response: {response.text}')
 
                 alert_data = {
-                        'name': name,
-                        'address': address,
-                        'market cap': market_cap,
-                        'price': price_formatted,
-                        'Liquidity': liquidity,
-                        'time': datetime.now().isoformat()
-                    }
+                    'name': name,
+                    'address': address,
+                    'market cap': market_cap,
+                    'price': price_formatted,
+                    'Liquidity': liquidity,
+                    'time': datetime.now().isoformat()
+                }
 
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
 
                 alert_filename = f'{coin_address}.json'
                 alert_filepath = os.path.join(output_dir, alert_filename)
-                
+
                 try:
                     with open(alert_filepath, 'w') as alert_file:
                         json.dump(alert_data, alert_file, indent=4)
@@ -280,3 +273,5 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 except Exception as e:
                     if debug:
                         print(f'Error saving alert to file: {alert_filepath}, Error: {e}')
+
+
