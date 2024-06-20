@@ -14,5 +14,6 @@ shitcoins.egg-info/SOURCES.txt
 shitcoins.egg-info/top_level.txt
 
 venv/
+alerts/
 shitcoins.egg-info
 build/

@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import json
 import requests
@@ -25,6 +26,9 @@ def send_telegram_message(message, bot_token, chat_id):
 
 # Function to calculate fresh and old percentages and send Telegram alerts
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
+
+    output_dir = os.path.join(coins_dir, '..', 'alerts')
+
     for filename in os.listdir(coins_dir):
         if filename.endswith('.json'):
             file_path = os.path.join(coins_dir, filename)
@@ -64,9 +68,13 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
 
             message = []
+            name = ""
+            address = ""
+            market_cap = ""
 
             try:
                 message.append(f'<strong>{coin_data["market_info"]["token_name"]}</strong>')
+                name = coin_data["market_info"]["token_name"]
             except KeyError:
                 message.append('<strong>N/A</strong>')
 
@@ -74,6 +82,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             try:
                 message.append(f'<code>{coin_address}</code>')
+                address = coin_address
             except KeyError:
                 message.append('<code>N/A</code>')
 
@@ -81,6 +90,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             try:
                 message.append(f"🚀Market Cap: <strong>{market_cap_formatted}</strong>")
+                market_cap = market_cap_formatted
             except KeyError:
                 message.append("🚀Market Cap: <strong>N/A</strong>")
 
@@ -129,6 +139,8 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             message.append('')
 
             alert = '\n'.join(message)
+            #alert_analysis = '\n'.join(message_for_analysis)
+
 
             print(alert)
             print('-' * 40)
@@ -138,3 +150,24 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 if debug:
                     print(f'Telegram response: {response.text}')
 
+                alert_data = {
+                        'name': name,
+                        'address': address,
+                        'market cap': market_cap,
+                        'time': datetime.now().isoformat()
+                    }
+
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+
+                alert_filename = f'{coin_address}.json'
+                alert_filepath = os.path.join(output_dir, alert_filename)
+                
+                try:
+                    with open(alert_filepath, 'w') as alert_file:
+                        json.dump(alert_data, alert_file, indent=4)
+                    if debug:
+                        print(f'Alert saved to file: {alert_filepath}')
+                except Exception as e:
+                    if debug:
+                        print(f'Error saving alert to file: {alert_filepath}, Error: {e}')
