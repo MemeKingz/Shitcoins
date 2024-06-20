@@ -129,8 +129,9 @@ def check_time_and_send_report():
         report_sent = False
         last_checked_date = current_date
 
-    if adelaide_time.hour >= 17 and not report_sent:
+    if adelaide_time.hour == 0 and adelaide_time.minute < 5 and not report_sent:
         analysis_report()
+        report_sent = True
 
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
     output_dir = os.path.join(coins_dir, '..', 'alerts')
