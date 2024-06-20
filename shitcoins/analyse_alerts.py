@@ -124,6 +124,7 @@ def analyse():
                 results.append(result)
 
                 # Delete the original JSON file
+
                 try:
                     os.remove(filepath)
                     print(f"Deleted file: {filepath}")
@@ -134,6 +135,3 @@ def analyse():
     current_date = datetime.now().strftime('%Y-%m-%d')
     output_filepath = os.path.join(json_folder, f"{current_date}.json")
     append_to_json_file(output_filepath, results)
-
-if __name__ == "__main__":
-    analyse()

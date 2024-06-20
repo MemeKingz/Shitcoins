@@ -6,7 +6,7 @@ from time import sleep
 from mint_address_fetcher import MintAddressFetcher
 from get_holders import get_holders
 from check_holder_transfers import multiprocess_coin_holders
-from telegram_alert import alert
+from telegram_alert import alert, check_time_and_send_report
 from dotenv import load_dotenv
 from analyse_alerts import analyse
 
@@ -55,6 +55,7 @@ async def main():
             if file.endswith('.json'):
                 os.remove(os.path.join('coins', file))
         analyse()
+        check_time_and_send_report()
         print("Iteration complete. Waiting for next run.")
 
         sleep(LOOP_DELAY)

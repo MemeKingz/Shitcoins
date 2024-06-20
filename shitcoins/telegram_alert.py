@@ -1,7 +1,8 @@
-from datetime import datetime
 import os
 import json
 import requests
+from datetime import datetime, timedelta
+from pytz import timezone
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -10,6 +11,9 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
 SEND_PERCENT_THRESHOLD = float(os.getenv('SEND_PERCENT_THRESHOLD'))
 
+# Global variable to track if the report has been sent today
+report_sent = False
+last_checked_date = None
 
 # Function to send message to Telegram
 def send_telegram_message(message, bot_token, chat_id):
@@ -23,8 +27,108 @@ def send_telegram_message(message, bot_token, chat_id):
     response = requests.post(url, data=payload)
     return response
 
+def analysis_report():
+    global report_sent
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    json_folder = os.path.join(base_dir, 'alerts')
+    current_date = datetime.now(timezone('Australia/Adelaide')).strftime('%Y-%m-%d')
+    report_filepath = os.path.join(json_folder, f"{current_date}.json")
 
-# Function to calculate fresh and old percentages and send Telegram alerts
+    print(f"Checking for report file at: {report_filepath}")
+
+    if os.path.exists(json_folder):
+        print(f"Contents of {json_folder}: {os.listdir(json_folder)}")
+    else:
+        print(f"The directory {json_folder} does not exist.")
+
+    data_list = []
+
+    if os.path.exists(report_filepath):
+        try:
+            with open(report_filepath, 'r') as file:
+                report_data = json.load(file)
+
+                if isinstance(report_data, list):
+                    data_list.extend(report_data)
+                elif isinstance(report_data, dict):
+                    data_list.append(report_data)
+                else:
+                    print(f"Skipping {report_filepath} because it contains an unsupported format.")
+                    return
+
+            message = []
+            message.append("<strong>DAILY REPORT</strong>")
+            message.append("Alerts reviewed 6 hours post-channel posting.")
+            message.append("")
+
+            for item in data_list:
+                try:
+                    message.append(f'<strong>{item["name"]}</strong>')
+                except KeyError:
+                    message.append('<strong>N/A</strong>')
+
+                try:
+                    message.append(f'<code>{item["address"]}</code>')
+                except KeyError:
+                    message.append('<code>N/A</code>')
+
+                try:
+                    market_cap_formatted = "${:,.2f}".format(item['original_market_cap'])
+                    message.append(f"🚀Original Market Cap: <strong>{market_cap_formatted}</strong>")
+                except KeyError:
+                    message.append("🚀Original Market Cap: <strong>N/A</strong>")
+
+                try:
+                    market_cap_formatted = "${:,.2f}".format(item['new_market_cap'])
+                    message.append(f"🚀New Market Cap: <strong>{market_cap_formatted}</strong>")
+                except KeyError:
+                    message.append("🚀New Market Cap: <strong>N/A</strong>")
+
+                try:
+                    market_cap_difference_formatted = "${:,.2f}".format(item['market_cap_difference'])
+                    message.append(f"💹Market Cap Difference: <strong>{market_cap_difference_formatted}</strong>")
+                except KeyError:
+                    message.append("💹Market Cap Difference: <strong>N/A</strong>")
+
+                try:
+                    percentage_change = item['percentage_change']
+                    message.append(f"📈Percentage Change: <strong>{percentage_change:.2f}%</strong>")
+                except KeyError:
+                    message.append("📈Percentage Change: <strong>N/A</strong>")
+
+                message.append('')
+
+            alert_message = '\n'.join(message)
+            response = send_telegram_message(alert_message, BOT_TOKEN, CHAT_ID)
+            if response.status_code == 200:
+                print(f'Successfully sent report to Telegram.')
+            else:
+                print(f'Failed to send report to Telegram. Response: {response.text}')
+
+            os.remove(report_filepath)
+            print(f'Deleted report file: {report_filepath}')
+            report_sent = True
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON from file {report_filepath}.")
+        except Exception as e:
+            print(f'Error processing report file: {report_filepath}, Error: {e}')
+    else:
+        print(f'No report file found for {current_date}.')
+
+
+def check_time_and_send_report():
+    global report_sent, last_checked_date
+    adelaide_time = datetime.now(timezone('Australia/Adelaide'))
+    current_date = adelaide_time.strftime('%Y-%m-%d')
+
+    if last_checked_date != current_date:
+        report_sent = False
+        last_checked_date = current_date
+
+    if adelaide_time.hour >= 17 and not report_sent:
+        analysis_report()
+
+
 def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
     output_dir = os.path.join(coins_dir, '..', 'alerts')
