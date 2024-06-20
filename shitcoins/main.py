@@ -3,12 +3,12 @@ import os
 import asyncio
 import logging
 from time import sleep
-
 from mint_address_fetcher import MintAddressFetcher
 from get_holders import get_holders
 from check_holder_transfers import multiprocess_coin_holders
 from telegram_alert import alert
 from dotenv import load_dotenv
+from analyse_alerts import analyse
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -54,7 +54,7 @@ async def main():
         for file in os.listdir('coins'):
             if file.endswith('.json'):
                 os.remove(os.path.join('coins', file))
-
+        analyse()
         print("Iteration complete. Waiting for next run.")
 
         sleep(LOOP_DELAY)

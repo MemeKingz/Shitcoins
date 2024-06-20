@@ -64,13 +64,14 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
-            #price_formatted = '${:f}'.format(coin_data['market_info']['price'])
+            price_formatted = '${:f}'.format(coin_data['market_info']['price'])
 
 
             message = []
             name = ""
             address = ""
             market_cap = ""
+            liquidity = ""
 
             try:
                 message.append(f'<strong>{coin_data["market_info"]["token_name"]}</strong>')
@@ -96,6 +97,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
 
             try:
                 message.append(f"💦Liquidity: <strong>{liquidity_formatted}</strong>")
+                liquidity = liquidity_formatted
             except KeyError:
                 message.append("💦Liquidity: <strong>N/A</strong>")
             #get token age data
@@ -139,21 +141,24 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             message.append('')
 
             alert = '\n'.join(message)
-            #alert_analysis = '\n'.join(message_for_analysis)
 
 
             print(alert)
             print('-' * 40)
 
             if bot_token and chat_id and percent_fresh >= SEND_PERCENT_THRESHOLD:
-                response = send_telegram_message(alert, bot_token, chat_id)
+                #response = send_telegram_message(alert, bot_token, chat_id)
+                print("hello")
                 if debug:
-                    print(f'Telegram response: {response.text}')
+                    #print(f'Telegram response: {response.text}')
+                    print("hello")
 
                 alert_data = {
                         'name': name,
                         'address': address,
                         'market cap': market_cap,
+                        'price': price_formatted,
+                        'Liquidity': liquidity,
                         'time': datetime.now().isoformat()
                     }
 
