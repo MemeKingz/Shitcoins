@@ -157,7 +157,7 @@ def multiprocess_coin_holders(coin_data: CoinData) -> CoinData:
 
     futures = []
     result = []
-    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count() - 1) as executor:
         for holder in coin_data['holders']:
             futures.append(executor.submit(check_holder, holder, lock_counter))
 
