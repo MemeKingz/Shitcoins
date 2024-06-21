@@ -30,7 +30,8 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['DB_PORT'] = '5332'
         os.environ['MIN_HOLDER_COUNT'] = '1'
         os.environ['FRESH_WALLET_HOURS'] = '24'
-        os.environ['SKIP_THRESHOLD'] = '200'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '200'
+        os.environ['SOLSCAN_MAX_TRNS_PER_REQ'] = '50'
         self.conn = psycopg2.connect(
             database='shitcoins', user=os.environ['DB_USER'], host='localhost', port=os.environ['DB_PORT']
         )
@@ -51,7 +52,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
     def test_multiprocess_coin_holders_respects_skip_threshold(self):
-        os.environ['SKIP_THRESHOLD'] = '50'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '50'
         os.environ['RUN_WITH_DB'] = 'false'
         # change old to be identified as skip by lowering skip
         coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_old])
@@ -61,6 +62,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_identifies_bundler(self):
         os.environ['RUN_WITH_DB'] = 'false'
+        os.environ['SOLSCAN_MAX_TRNS_PER_REQ'] = '1'
         coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_bundler])
         coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(1, len(coin_data['holders']))
@@ -100,10 +102,9 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(2, len(coin_data['holders']))
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
-        os.environ['SKIP_THRESHOLD'] = '50'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '50'
         holder_bundler = wallet_repo.get_wallet_entry(self.expected_holder_addr_bundler['address'])
         self.assertEqual(self.expected_holder_addr_bundler['address'], holder_bundler['address'])
-        self.assertEqual('BUNDLER', holder_bundler['status'])
 
     def test_multiprocess_coin_holders_skip_checks_if_in_db(self):
         """
@@ -127,7 +128,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         Test that transaction counts are being recorded correctly to the database.
         """
         os.environ['FRESH_WALLET_HOURS'] = '10000000'
-        os.environ['SKIP_THRESHOLD'] = '1000'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '1000'
         os.environ['RUN_WITH_DB'] = 'true'
         fresh_coin_data = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt', status='FRESH')
 

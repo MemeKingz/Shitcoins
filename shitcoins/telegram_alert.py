@@ -45,22 +45,18 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
-            #old_addresses = sum(1 for holder in holders if holder['status'] == 'OLD')
-            #bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
+            bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
 
             percent_fresh = 0
-            #percent_old = 0
-            #percent_bundler = 0
+            percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
-                #percent_old = (old_addresses / total_addresses) * 100
-                #percent_bundler = (bundler_addresses / total_addresses) * 100
+                percent_bundler = (bundler_addresses / total_addresses) * 100
 
             coin_address = os.path.splitext(filename)[0]
 
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
-            #price_formatted = '${:f}'.format(coin_data['market_info']['price'])
 
 
             message = []
@@ -105,6 +101,8 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 message.append("👀Fresh: <strong>N/A</strong>")
 
             try:
+                if percent_bundler > float(os.getenv('BUNDLED_WALLETS_THRESHOLD_PERCENTAGE')):
+                    coin_data["suspect_bundled"] = True
                 message.append(f'⛳Bundled: <strong>{"Yes" if coin_data.get("suspect_bundled") else "No"}</strong>')
             except KeyError:
                 message.append("⛳Bundled: <strong>N/A</strong>")
