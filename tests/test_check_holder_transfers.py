@@ -107,7 +107,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_skip_checks_if_in_db(self):
         """
-        This is a manual test. Place a debugger on get_first_transfer_time to see that it is not called
+        This is a manual test. Place a debugger on get_first_transfer_time_or_status to see that it is not called
         """
         os.environ['RUN_WITH_DB'] = 'true'
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
