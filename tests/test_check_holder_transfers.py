@@ -1,10 +1,12 @@
+import multiprocessing
 import os
 import unittest
+from unittest.mock import patch
 
 import psycopg2
 import psycopg2.extras
 
-from shitcoins.check_holder_transfers import multiprocess_coin_holders, check_holder
+from shitcoins.check_holder_transfers import multiprocess_coin_holders, check_holder, _chunk_holders
 from shitcoins.model.coin_data import CoinData
 from shitcoins.database.table.wallet_repository import WalletRepository
 from shitcoins.model.holder import Holder
@@ -30,7 +32,8 @@ class TestCheckHolderTransfers(unittest.TestCase):
         os.environ['DB_PORT'] = '5332'
         os.environ['MIN_HOLDER_COUNT'] = '1'
         os.environ['FRESH_WALLET_HOURS'] = '24'
-        os.environ['SKIP_THRESHOLD'] = '200'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '200'
+        os.environ['SOLSCAN_MAX_TRNS_PER_REQUEST'] = '20'
         self.conn = psycopg2.connect(
             database='shitcoins', user=os.environ['DB_USER'], host='localhost', port=os.environ['DB_PORT']
         )
@@ -51,7 +54,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
     def test_multiprocess_coin_holders_respects_skip_threshold(self):
-        os.environ['SKIP_THRESHOLD'] = '50'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '50'
         os.environ['RUN_WITH_DB'] = 'false'
         # change old to be identified as skip by lowering skip
         coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_old])
@@ -100,7 +103,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(2, len(coin_data['holders']))
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
-        os.environ['SKIP_THRESHOLD'] = '50'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '50'
         holder_bundler = wallet_repo.get_wallet_entry(self.expected_holder_addr_bundler['address'])
         self.assertEqual(self.expected_holder_addr_bundler['address'], holder_bundler['address'])
         self.assertEqual('BUNDLER', holder_bundler['status'])
@@ -127,7 +130,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         Test that transaction counts are being recorded correctly to the database.
         """
         os.environ['FRESH_WALLET_HOURS'] = '10000000'
-        os.environ['SKIP_THRESHOLD'] = '1000'
+        os.environ['SOLSCAN_SKIP_THRESHOLD'] = '1000'
         os.environ['RUN_WITH_DB'] = 'true'
         fresh_coin_data = Holder(address='2h6UHRdvF46GaUy5BMmWzN6tby6Vnsu3ZW2ep6PKkhGt', status='FRESH')
 
@@ -142,5 +145,34 @@ class TestCheckHolderTransfers(unittest.TestCase):
         check_holder(fresh_coin_data)
         result_second_run = wallet_repo.get_wallet_entry(fresh_coin_data['address'])
         self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
+
+    @patch('time.sleep', return_value=None)
+    def test_multiprocess_coin_holders_waits_if_requests_exceed_x_seconds(self, mocked_time_sleep):
+        os.environ['RUN_WITH_DB'] = 'false'
+        os.environ['RESERVED_CPUS'] = str(multiprocessing.cpu_count() - 1)
+
+        coin_data: CoinData = CoinData(coin_address=self.pump_address,
+                                       market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
+                                       holders=[self.expected_holder_addr_old], suspect_bundled=False)
+        multiprocess_coin_holders(coin_data)
+        mocked_time_sleep.assert_called_once()
+
+    def test_chunk_holders_correct_chunk_len(self):
+        os.environ['RUN_WITH_DB'] = 'false'
+        total_holders = self.holders
+        holders_chunked = _chunk_holders(total_holders, 50, 50)
+        holders_chunked_flattened = [x for xs in holders_chunked for x in xs]
+        self.assertEqual(len(total_holders), len(holders_chunked_flattened))
+
+        total_holders.append(self.expected_holder_addr_old)
+        holders_chunked = _chunk_holders(total_holders, 50,1)
+        holders_chunked_flattened = [x for xs in holders_chunked for x in xs]
+        self.assertEqual(len(total_holders), len(holders_chunked_flattened))
+
+        total_holders.extend(self.holders)
+        holders_chunked = _chunk_holders(total_holders, 50, 1)
+        holders_chunked_flattened = [x for xs in holders_chunked for x in xs]
+        self.assertEqual(len(total_holders), len(holders_chunked_flattened))
+
 
 
