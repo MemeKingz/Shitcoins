@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import List
 
+import psycopg2.errors
 import psycopg2
 
 LOGGER = logging.getLogger(__name__)
@@ -37,7 +38,10 @@ class Table:
         self._cursor.execute(f"TRUNCATE {table_name}")
 
     def _insert_entry(self, table_name: str, entry: str):
-        self._cursor.execute(f"INSERT INTO {table_name} VALUES {entry} ")
+        try:
+            self._cursor.execute(f"INSERT INTO {table_name} VALUES {entry} ")
+        except psycopg2.errors.lookup("23505"):
+            LOGGER.error(f"UniqueViolation: Insertion of PK with non unique address {entry}")
 
     def _insert_entry_if_not_exist(self, table_name: str, entry: str):
         self._cursor.execute(f"INSERT INTO {table_name} VALUES {entry} "

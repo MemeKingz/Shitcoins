@@ -105,7 +105,7 @@ def check_holder(holder: Holder) -> Holder:
     if os.getenv('RUN_WITH_DB').lower() == 'true':
         # todo - creating a new connection everytime may be inefficient, consider alternative
         conn = psycopg2.connect(
-            database='shitcoins', user=os.getenv('DB_USER'), host='localhost', port=os.getenv('DB_PORT')
+            database='shitcoins', user=os.getenv('DB_USER'), host='0.0.0.0', port=os.getenv('DB_PORT')
         )
         conn.autocommit = True
 
