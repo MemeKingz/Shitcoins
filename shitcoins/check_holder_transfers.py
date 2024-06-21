@@ -39,12 +39,13 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
-    max_trns_per_req = 50
+    max_trns_per_req = int(os.getenv('SOLSCAN_MAX_TRNS_PER_REQ'))
+    skip_threshold = int(os.getenv('SOLSCAN_SKIP_THRESHOLD'))
     total_transactions = 0
 
     while True:
-        if total_transactions >= int(os.getenv('SKIP_THRESHOLD', 200)):
-            LOGGER.info(f"Reached {int(os.getenv('SKIP_THRESHOLD', 200))} transactions for "
+        if total_transactions >= skip_threshold:
+            LOGGER.info(f"Reached {skip_threshold} transactions for "
                         f"holder {holder_addr}, labelling as old.")
             # we know its old, so set a really old time
             return (current_time - timedelta(days=10)), total_transactions

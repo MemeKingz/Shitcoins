@@ -122,8 +122,9 @@ class MintAddressFetcher:
                     addr = pair['baseToken']['address']
                     if addr in address_to_dex_metric:
                         dex_metric = address_to_dex_metric[addr]
-                        dex_metric['total_fdv'] += pair['fdv']
-                        dex_metric['fdv_count'] += 1
+                        if 'fdv' in pair:
+                            dex_metric['total_fdv'] += pair['fdv']
+                            dex_metric['fdv_count'] += 1
                     else:
                         # calculate average market_cap via average fdv,  but just use first pair's
                         # liquidity and price value
@@ -142,15 +143,12 @@ class MintAddressFetcher:
                                 f"with DexScreener API")
         return address_to_market_info
 
-
     async def fetch_pump_addresses_from_telegram(self) -> List[CoinData]:
         await self.telegram_client.start(phone)
 
-        MIN_MARKET_CAP = float(os.getenv('MIN_MARKET_CAP'))
-        MAX_MARKET_CAP = float(os.getenv('MAX_MARKET_CAP'))
         FETCH_LIMIT = int(os.getenv('FETCH_LIMIT', 100))
         channel_username = os.getenv('CHANNEL_USERNAME')
-        
+
         telegram_addresses_market_cap: Dict[str, float] = {}
 
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
@@ -166,7 +164,7 @@ class MintAddressFetcher:
         await self.telegram_client.disconnect()
 
         new_addresses = [address for address in telegram_addresses_market_cap
-                        if address not in self.seen_addresses]
+                         if address not in self.seen_addresses]
 
         return_coins_data: List[CoinData] = []
 
@@ -179,23 +177,29 @@ class MintAddressFetcher:
 
                 for new_address in new_addresses:
                     if new_address in dexscreener_addr_to_market_info:
-                        if MIN_MARKET_CAP <= dexscreener_addr_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
+                        if self._is_within_market_cap(dexscreener_addr_to_market_info[new_address]['market_cap']):
                             return_coins_data.append(CoinData(coin_address=new_address,
-                                                            suspect_bundled=self.check_if_coin_is_bundled(new_address),
-                                                            market_info=dexscreener_addr_to_market_info[new_address],
-                                                            holders=[]))
+                                                              suspect_bundled=self.check_if_coin_is_bundled(
+                                                                  new_address),
+                                                              market_info=dexscreener_addr_to_market_info[new_address],
+                                                              holders=[]))
                         else:
                             LOGGER.warning(f"Market cap for {new_address} is out of range.")
 
                 if return_coins_data:
                     break
                 else:
-                    LOGGER.warning(f"Attempt {attempts} failed to get market info. Retrying in {DEX_DELAY_SEC} seconds.")
+                    LOGGER.warning(
+                        f"Attempt {attempts} failed to get market info. Retrying in {DEX_DELAY_SEC} seconds.")
                     await asyncio.sleep(DEX_DELAY_SEC)
 
         self.seen_addresses.extend(new_addresses)
         self.seen_addresses = list(set(self.seen_addresses))
         self._save_seen_addresses()
-        
+
         return return_coins_data
 
+    def _is_within_market_cap(self, market_cap: float) -> bool:
+        MIN_MARKET_CAP = float(os.getenv('MIN_MARKET_CAP'))
+        MAX_MARKET_CAP = float(os.getenv('MAX_MARKET_CAP'))
+        return MIN_MARKET_CAP <= market_cap <= MAX_MARKET_CAP
