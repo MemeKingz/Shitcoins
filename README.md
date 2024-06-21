@@ -1,6 +1,6 @@
 # 
 
-Run `wou4d3 setup.sh` on your linux machine to install a virtual environment with necessary dependencies
+Run `source setup.sh` on your linux machine to install a virtual environment with necessary dependencies
 and activate a venv on the shell.
 
 ## Recommended environment variable values
