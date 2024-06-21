@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Dict
 
 from telethon import TelegramClient
-import re
+import asyncio
 import os
 import json
 import logging
@@ -24,6 +24,8 @@ phone = os.getenv('PHONE')
 channel_username = os.getenv('CHANNEL_USERNAME')
 FETCH_LIMIT = int(os.getenv('FETCH_LIMIT'))
 API_KEY = os.getenv('SOLSCAN_API_KEY')
+DEX_DELAY_SEC = int(os.getenv('DEX_DELAY_SEC'))
+DEX_RETRY_ATTEMPTS = int(os.getenv('DEX_RETRY_ATTEMPTS'))
 
 LOGGER = logging.getLogger(__name__)
 
@@ -140,11 +142,15 @@ class MintAddressFetcher:
                                 f"with DexScreener API")
         return address_to_market_info
 
+
     async def fetch_pump_addresses_from_telegram(self) -> List[CoinData]:
         await self.telegram_client.start(phone)
 
         MIN_MARKET_CAP = float(os.getenv('MIN_MARKET_CAP'))
         MAX_MARKET_CAP = float(os.getenv('MAX_MARKET_CAP'))
+        FETCH_LIMIT = int(os.getenv('FETCH_LIMIT', 100))
+        channel_username = os.getenv('CHANNEL_USERNAME')
+        
         telegram_addresses_market_cap: Dict[str, float] = {}
 
         async for message in self.telegram_client.iter_messages(channel_username, limit=FETCH_LIMIT):
@@ -157,45 +163,39 @@ class MintAddressFetcher:
                         potential_address = line.strip().strip('`')
                         if potential_address.endswith('pump'):
                             telegram_addresses_market_cap[potential_address] = 0
-                    if "Market Cap" in line:
-                        market_cap_str = line.split("$")[1].strip()
-                        try:
-                            market_cap = float(re.sub(r'[^\d.]', '', market_cap_str.replace('k', '000')
-                                                      .replace('K', '000')))
-                            if potential_address and potential_address in telegram_addresses_market_cap:
-                                telegram_addresses_market_cap[potential_address] = market_cap
-                        except ValueError:
-                            LOGGER.error('ERROR WHEN TRYING TO RETRIEVE MARKET CAP FROM TELEGRAM')
-                            continue
-
         await self.telegram_client.disconnect()
 
         new_addresses = [address for address in telegram_addresses_market_cap
-                         if address not in self.seen_addresses]
-        dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
+                        if address not in self.seen_addresses]
 
         return_coins_data: List[CoinData] = []
-        for new_address in new_addresses:
 
-            if new_address in dexscreener_addr_to_market_info:
-                if MIN_MARKET_CAP <= dexscreener_addr_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
-                    # ADD NEW ADDRESS THAT HAS MARKET_INFO DATA (POST-MIGRATION)
-                    return_coins_data.append(CoinData(coin_address=new_address,
-                                                      suspect_bundled=self.check_if_coin_is_bundled(new_address),
-                                                      market_info=dexscreener_addr_to_market_info[new_address],
-                                                      holders=[]))
+        if new_addresses:
+            attempts = 0
 
-            else: 
-                LOGGER.warning(f"cannot determine market value for new coin {new_address}")
-                LOGGER.warning("using telegram market information instead")
-                # ADD NEW ADDRESS EVEN WITHOUT MARKET_INFO DATA (PRE-MIGRATION)
-                # IGNORE PRE-MIGRATION COINS
-                return_coins_data.append(CoinData(coin_address=new_address,
-                                                   market_info=MarketInfo(market_cap=
-                                                                          telegram_addresses_market_cap[new_address],
-                                                                          liquidity=0, price=0),holders=[]))
+            while attempts < DEX_RETRY_ATTEMPTS:
+                attempts += 1
+                dexscreener_addr_to_market_info = self.fetch_pump_address_info_dexscreener(new_addresses)
+
+                for new_address in new_addresses:
+                    if new_address in dexscreener_addr_to_market_info:
+                        if MIN_MARKET_CAP <= dexscreener_addr_to_market_info[new_address]['market_cap'] <= MAX_MARKET_CAP:
+                            return_coins_data.append(CoinData(coin_address=new_address,
+                                                            suspect_bundled=self.check_if_coin_is_bundled(new_address),
+                                                            market_info=dexscreener_addr_to_market_info[new_address],
+                                                            holders=[]))
+                        else:
+                            LOGGER.warning(f"Market cap for {new_address} is out of range.")
+
+                if return_coins_data:
+                    break
+                else:
+                    LOGGER.warning(f"Attempt {attempts} failed to get market info. Retrying in {DEX_DELAY_SEC} seconds.")
+                    await asyncio.sleep(DEX_DELAY_SEC)
 
         self.seen_addresses.extend(new_addresses)
         self.seen_addresses = list(set(self.seen_addresses))
         self._save_seen_addresses()
+        
         return return_coins_data
+
