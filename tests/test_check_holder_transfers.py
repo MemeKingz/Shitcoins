@@ -1,5 +1,6 @@
 import os
 import unittest
+from concurrent.futures import ProcessPoolExecutor
 
 import psycopg2
 import psycopg2.extras
@@ -9,11 +10,14 @@ from shitcoins.model.coin_data import CoinData
 from shitcoins.database.table.wallet_repository import WalletRepository
 from shitcoins.model.holder import Holder
 from shitcoins.model.market_info import MarketInfo
+from shitcoins.mp.multi_process_rate_limiter import MultiProcessRateLimiter
 
 
 class TestCheckHolderTransfers(unittest.TestCase):
     # test to see if UNKNOWN are NOT being added to db
     def setUp(self):
+        self.mp_rate_limiter = MultiProcessRateLimiter(max_requests=1000, per_seconds=60)
+        self.lock_counter = self.mp_rate_limiter.get_lock_counter()
         self.expected_holder_addr_old: Holder = Holder(address='716gAK3yUXGsB6CQbUw6Yr26neWa4TzZePdYHN299ANd',
                                                        status='OLD', transactions_count=0)
         self.expected_holder_addr_bundler: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
@@ -48,7 +52,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         coin_data: CoinData = multiprocess_coin_holders(coin_data)
         self.assertEqual(self.pump_address, coin_data["coin_address"])
         self.assertEqual(2, len(coin_data['holders']))
-        self.assertEqual(self.expected_holder_addr_old['address'], coin_data['holders'][1]['address'])
+        self.assertEqual(self.expected_holder_addr_old['address'], coin_data['holders'][0]['address'])
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
     def test_multiprocess_coin_holders_respects_skip_threshold(self):
@@ -134,14 +138,34 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
-        check_holder(fresh_coin_data)
+
+        futures = []
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            futures.append(executor.submit(check_holder, fresh_coin_data, self.lock_counter))
+
+            while len(futures):
+                self.mp_rate_limiter.cycle()
+
+                for future in futures:
+                    if future.done():
+                        futures.remove(future)
+
         result = wallet_repo.get_wallet_entry(fresh_coin_data['address'])
         self.assertEqual(fresh_coin_data['address'], result['address'])
         self.assertEqual("FRESH", result['status'])
 
         self.assertTrue(result['transactions_count'] > 0)
-        check_holder(fresh_coin_data)
+
+        futures = []
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            futures.append(executor.submit(check_holder, fresh_coin_data, self.lock_counter))
+
+            while len(futures):
+                self.mp_rate_limiter.cycle()
+
+                for future in futures:
+                    if future.done():
+                        futures.remove(future)
+
         result_second_run = wallet_repo.get_wallet_entry(fresh_coin_data['address'])
         self.assertEqual(result['transactions_count'], result_second_run['transactions_count'])
-
-

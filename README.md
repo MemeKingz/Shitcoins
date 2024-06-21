@@ -1,7 +1,7 @@
-# Shitcoins
+# 
 
-Run `setup.sh` on your linux machine to install a virtual environment with necessary dependencies.
-Run it again till your terminal has `(venv)` activated. 
+Run `wou4d3 setup.sh` on your linux machine to install a virtual environment with necessary dependencies
+and activate a venv on the shell.
 
 ## Recommended environment variable values
 Refer to .env.example to create a .env file
