@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import TypedDict
 
@@ -7,4 +9,4 @@ class MarketInfo(TypedDict):
     market_cap: float
     liquidity: float
     price: float
-    created_at_utc: datetime
+    created_at_utc: datetime | None

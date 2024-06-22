@@ -129,11 +129,11 @@ class MintAddressFetcher:
                         if 'pairCreatedAt' in pair:
                             token_created_at = pair["pairCreatedAt"] / 1000
                             creation_time_utc = datetime.utcfromtimestamp(token_created_at)
-                            if creation_time_utc < dex_metric['created_at_utc']:
+
+                            if (dex_metric['created_at_utc'] is None
+                                    or creation_time_utc < dex_metric['created_at_utc']):
                                 # use earlier found creation time
-                                print(token_created_at)
                                 dex_metric['created_at_utc'] = creation_time_utc
-                                print(creation_time_utc)
 
                     else:
                         # calculate average market_cap via average fdv,  but just use first pair's
@@ -142,17 +142,12 @@ class MintAddressFetcher:
                                                                 liquidity=float(pair['liquidity']['usd']),
                                                                 price=float(pair['priceUsd']),
                                                                 token_name=pair['baseToken']['name'],
-                                                                created_at_utc=datetime.now(timezone.utc)
-                                                                .replace(tzinfo=None))
+                                                                created_at_utc=None)
 
                         if 'pairCreatedAt' in pair:
                             token_created_at = pair["pairCreatedAt"] / 1000
-                            print(token_created_at)
                             creation_time_utc = datetime.utcfromtimestamp(token_created_at)
                             address_to_dex_metric[addr]['created_at_utc'] = creation_time_utc
-                            print(creation_time_utc)
-
-
 
                 for addr, dex_metric in address_to_dex_metric.items():
                     market_cap = float(dex_metric['total_fdv'] / dex_metric['fdv_count'])
