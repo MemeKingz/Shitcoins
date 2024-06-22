@@ -1,8 +1,8 @@
 import os
 import unittest
+from datetime import timezone, datetime, timedelta
 
 from shitcoins.mint_address_fetcher import MintAddressFetcher
-from shitcoins.model.coin_data import CoinData
 
 
 class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
@@ -38,6 +38,13 @@ class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(0 < market_info[self.test_token_address]['liquidity'] < 100_000_000)
         self.assertTrue(0 < market_info[self.dicki_token_address]['market_cap'])
         self.assertTrue(0 < market_info[self.test_token_address]['market_cap'])
+
+    def test_fetch_pump_address_info_dexscreener_returns_appropriate_time(self):
+        zaza_address = '3QJzpi68a3CUVPGVUjYLWziGKCAvbNXmC5VFNy1ypump'
+        market_info = self.mint_address_fetcher.fetch_pump_address_info_dexscreener([zaza_address])
+        self.assertTrue('created_at_utc' in market_info[zaza_address])
+        self.assertTrue(market_info[zaza_address]['created_at_utc']
+                        < (datetime.now(timezone.utc) - timedelta(hours=10)).replace(tzinfo=None))
 
     def test_check_if_coin_is_bundled_returns_correct_boolean(self):
         non_bundled_coin = '8EHC2gfTLDb2eGQfjm17mVNLWPGRc9YVD75bepZ2nZJa'

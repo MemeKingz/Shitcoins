@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TypedDict
 
 
@@ -6,3 +7,4 @@ class MarketInfo(TypedDict):
     market_cap: float
     liquidity: float
     price: float
+    created_at_utc: datetime
