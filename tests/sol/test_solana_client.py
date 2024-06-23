@@ -1,8 +1,11 @@
+import logging
 import unittest
 
 from shitcoins.sol.solana_client import get_first_transaction_sigs, is_bundled
 from solana.rpc.async_api import Signature
 import base58
+logging.basicConfig(level=logging.INFO)
+
 class TestSolanaClient(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
@@ -18,5 +21,11 @@ class TestSolanaClient(unittest.IsolatedAsyncioTestCase):
     async def test_if_bundled_check_returns_false(self):
         search_from_signature = Signature(self.signature_base58)
         signatures, earliest_blocktime = await (get_first_transaction_sigs(self.pump_address, search_from_signature))
+        bundled = await is_bundled(signatures, earliest_blocktime)
+        self.assertFalse(bundled)
+
+    async def test_if_bundled_check_returns_true(self):
+        bundled_coin = 'E3HDR2gDRfwdz96kxo4Yteu4cGgcnpQN76TbB5Jipump'
+        signatures, earliest_blocktime = await (get_first_transaction_sigs(bundled_coin))
         bundled = await is_bundled(signatures, earliest_blocktime)
         self.assertFalse(bundled)

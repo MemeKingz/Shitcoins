@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime
 from typing import List
 
 from dotenv import load_dotenv
@@ -50,13 +51,16 @@ async def get_first_transaction_sigs(mint_address: str, from_signature=None) -> 
 
                 if len(signatures) < 1000:
                     # found the earliest transaction
-                    LOGGER.info(f" Found earliest transaction execution :: ran for {time.time() - start_time}")
+                    LOGGER.info(f" Found earliest transaction execution "
+                                f":: {datetime.fromtimestamp(earliest_transaction.block_time)}"
+                                f":: ran for {time.time() - start_time}")
                     return signatures, earliest_transaction.block_time
             except solana.exceptions.SolanaRpcException as e:
                 LOGGER.error(e)
                 raise
         LOGGER.error(f" UNABLE to determine earliest transaction within the last "
-                     f"{(skip_threshold * 1000):,} transactions")
+                     f"{(skip_threshold * 1000):,} transactions :: "
+                     f"return {datetime.fromtimestamp(earliest_transaction.block_time)}")
         return signatures, earliest_transaction.block_time
 
 
