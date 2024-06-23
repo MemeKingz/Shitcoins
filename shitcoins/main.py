@@ -7,6 +7,7 @@ from time import sleep
 from mint_address_fetcher import MintAddressFetcher
 from get_holders import get_holders
 from check_holder_transfers import multiprocess_coin_holders
+from sol.solana_client import get_first_transaction_sigs, is_bundled
 from telegram_alert import alert
 from dotenv import load_dotenv
 
@@ -26,8 +27,19 @@ async def main():
 
     while True:
         coins_data = await fetcher.fetch_pump_addresses_from_telegram()
-        # coin holders are ordered by percentage of the coin they hold (supply)
         for coin_data in coins_data:
+            # coin holders are ordered by percentage of the coin they hold (supply)
+            if len(coins_data) <= 3:
+                # obtaining first transactions of coins is slow, only do if 3 or less new addresses
+                try:
+                    signatures, earliest_blocktime = await get_first_transaction_sigs(coin_data['coin_address'])
+                    if await is_bundled(signatures, earliest_blocktime):
+                        print(f"SUSPECT :: Coin {coin_data['coin_address']} being bundled :: SKIPPING")
+                        continue
+                except Exception as e:
+                    print("ERROR trying to determine if coin is bundled with sol API")
+                    print(e)
+
             print(f"Getting holder addresses for {coin_data['coin_address']}")
             holders = list(set(get_holders(coin_data['coin_address'])))
 

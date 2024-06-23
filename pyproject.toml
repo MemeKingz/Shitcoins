@@ -21,7 +21,8 @@ dependencies = [
     "psycopg2-binary>=2.9.9",
     "flake8>=3.7.0",
     "solders>=0.21.0",
-    "solana>=0.34.2"
+    "solana>=0.34.2",
+    "base58>=2.1.1"
 ]
 
 [project.optional-dependencies]

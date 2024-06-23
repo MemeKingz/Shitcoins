@@ -46,53 +46,6 @@ class MintAddressFetcher:
         with open(self.seen_file, 'w') as file:
             json.dump(self.seen_addresses, file)
 
-    def check_if_coin_is_bundled(self, coin_address: str) -> bool:
-        """
-        Determine if a coin is bundled by checking if its latest and 10th transactions have the same timestamp
-        On errors determining this, assume it is not bundled
-        :param coin_address
-        :return boolean True if bundled, False if not
-        """
-        max_transactions_per_request = 10
-
-        url = (f"https://pro-api.solscan.io/v1.0/token/transfer?tokenAddress={coin_address}"
-               f"&limit={max_transactions_per_request}")
-        headers = {
-            'accept': 'application/json',
-            'token': API_KEY
-        }
-
-        response = requests.get(url, headers=headers)
-
-        if response.status_code == 200:
-            try:
-                data = response.json()['items']
-                if not data:
-                    return False
-
-                first_transaction_timestamp = (datetime.fromtimestamp(data[0]['blockTime'],
-                                                                      tz=timezone.utc)
-                                               .replace(microsecond=0))
-
-                earlier_transaction_timestamp = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'],
-                                                                        tz=timezone.utc)
-                                                 .replace(microsecond=0))
-                if earlier_transaction_timestamp == first_transaction_timestamp:
-                    return True
-                else:
-                    return False
-
-
-            except json.JSONDecodeError as e:
-                LOGGER.error(f"JSON decode error: {e}")
-                return False
-        elif response.status_code == 504:
-            LOGGER.error(f"504 error - unknown  coin address: {coin_address}")
-            return False
-        else:
-            LOGGER.error(f"Error: {response.status_code} - {response.text}")
-            return False
-
     def fetch_pump_address_info_dexscreener(self, pump_addresses: List[str]) -> Dict[str, MarketInfo]:
         address_to_market_info: Dict[str, MarketInfo] = {}
         address_to_dex_metric: Dict[str, DexMetric] = {}
@@ -184,8 +137,7 @@ class MintAddressFetcher:
                     if new_address in dexscreener_addr_to_market_info:
                         if self._is_within_market_cap(dexscreener_addr_to_market_info[new_address]['market_cap']):
                             return_coins_data.append(CoinData(coin_address=new_address,
-                                                              suspect_bundled=self.check_if_coin_is_bundled(
-                                                                  new_address),
+                                                              suspect_bundled=False,
                                                               market_info=dexscreener_addr_to_market_info[new_address],
                                                               holders=[]))
                         else:

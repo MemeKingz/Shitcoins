@@ -39,8 +39,3 @@ class TestMintAddressFetcher(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(0 < market_info[self.dicki_token_address]['market_cap'])
         self.assertTrue(0 < market_info[self.test_token_address]['market_cap'])
 
-    def test_check_if_coin_is_bundled_returns_correct_boolean(self):
-        non_bundled_coin = '8EHC2gfTLDb2eGQfjm17mVNLWPGRc9YVD75bepZ2nZJa'
-        is_bundled = self.mint_address_fetcher.check_if_coin_is_bundled(non_bundled_coin)
-        self.assertFalse(is_bundled)
-
