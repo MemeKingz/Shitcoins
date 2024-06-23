@@ -83,20 +83,37 @@ class MintAddressFetcher:
                             if 'type' in pair['info']['socials']:
                                 socials = pair['info']['socials']
                                 # to do store social information like twitter
+
+                        if 'pairCreatedAt' in pair:
+                            token_created_at = pair["pairCreatedAt"] / 1000
+                            creation_time_utc = datetime.utcfromtimestamp(token_created_at)
+
+                            if (dex_metric['created_at_utc'] is None
+                                    or creation_time_utc < dex_metric['created_at_utc']):
+                                # use earlier found creation time
+                                dex_metric['created_at_utc'] = creation_time_utc
+
                     else:
                         # calculate average market_cap via average fdv,  but just use first pair's
                         # liquidity and price value
                         address_to_dex_metric[addr] = DexMetric(total_fdv=pair['fdv'], fdv_count=1,
                                                                 liquidity=float(pair['liquidity']['usd']),
                                                                 price=float(pair['priceUsd']),
-                                                                token_name=pair['baseToken']['name'])
+                                                                token_name=pair['baseToken']['name'],
+                                                                created_at_utc=None)
+
+                        if 'pairCreatedAt' in pair:
+                            token_created_at = pair["pairCreatedAt"] / 1000
+                            creation_time_utc = datetime.utcfromtimestamp(token_created_at)
+                            address_to_dex_metric[addr]['created_at_utc'] = creation_time_utc
 
                 for addr, dex_metric in address_to_dex_metric.items():
                     market_cap = float(dex_metric['total_fdv'] / dex_metric['fdv_count'])
                     address_to_market_info[addr] = MarketInfo(market_cap=market_cap,
                                                               token_name=dex_metric['token_name'],
                                                               liquidity=dex_metric['liquidity'],
-                                                              price=dex_metric['price'])
+                                                              price=dex_metric['price'],
+                                                              created_at_utc=dex_metric['created_at_utc'])
                     LOGGER.info(f"Success: Calculated market info for {dex_metric['token_name']} "
                                 f"with DexScreener API")
         return address_to_market_info

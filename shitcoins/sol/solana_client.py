@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import time
 
 import solana.exceptions
+from shitcoins.util.time_util import datetime_from_utc_to_local
+from collections import Counter
 from solana.rpc.async_api import AsyncClient, Signature, Pubkey
 from solana.rpc.commitment import Finalized
 from solders.rpc.responses import RpcConfirmedTransactionStatusWithSignature
@@ -44,23 +46,25 @@ async def get_first_transaction_sigs(mint_address: str, from_signature=None) -> 
                 earliest_transaction = (await client.get_transaction(tx_sig=earliest_signature,
                                                                      max_supported_transaction_version=0)).value
 
+                earliest_ltime = datetime_from_utc_to_local(datetime.utcfromtimestamp(earliest_transaction.block_time))
                 counter += 1
                 if counter % 50:
-                    LOGGER.info(f" Searching earliest transaction for {mint_address} :: "
-                                f"Currently at {earliest_transaction.block_time}")
+                    LOGGER.debug(f" Searching earliest transaction for {mint_address} :: "
+                                f"Currently at {earliest_ltime}")
 
                 if len(signatures) < 1000:
                     # found the earliest transaction
                     LOGGER.info(f" Found earliest transaction execution "
-                                f":: {datetime.fromtimestamp(earliest_transaction.block_time)}"
-                                f":: ran for {time.time() - start_time}")
+                                f":: {earliest_ltime} "
+                                f":: Coin {mint_address} ")
+                    LOGGER.debug(f"First transaction found in {round(time.time() - start_time, 2)} seconds")
                     return signatures, earliest_transaction.block_time
             except solana.exceptions.SolanaRpcException as e:
                 LOGGER.error(e)
                 raise
-        LOGGER.error(f" UNABLE to determine earliest transaction within the last "
+        LOGGER.warning(f" UNABLE to determine earliest transaction within the last "
                      f"{(skip_threshold * 1000):,} transactions :: "
-                     f"return {datetime.fromtimestamp(earliest_transaction.block_time)}")
+                     f"return {earliest_ltime}")
         return signatures, earliest_transaction.block_time
 
 
@@ -74,13 +78,12 @@ async def get_signature_block_time(client: AsyncClient, earliest_signature: Sign
         raise
 
 
-async def is_bundled(earliest_signatures: List[RpcConfirmedTransactionStatusWithSignature],
-                     earliest_block_time: int) -> bool:
+async def is_bundled(earliest_signatures: List[RpcConfirmedTransactionStatusWithSignature]) -> bool:
     """
-    If timestamps of the first len(earliest_signatures) is greater than 30%
+    If timestamps of the first len(earliest_signatures) is greater than DUPLICATE_FIRST_TRANSACTIONS_PCT
     :earliest_signatures:
-    :earliest_block_time:
     """
+    LOGGER.info(f"Checking bundling against {len(earliest_signatures)} transactions")
     results = []
     async with AsyncClient(os.getenv("SOLANA_API_KEY")) as client:
         total_signatures_count = len(earliest_signatures)
@@ -93,10 +96,11 @@ async def is_bundled(earliest_signatures: List[RpcConfirmedTransactionStatusWith
             tasks = [get_signature_block_time(client, signature.signature) for signature in signatures]
             results.extend(await asyncio.gather(*tasks))
 
-        duplicate_count = results.count(earliest_block_time)
+        count_dict = Counter(results)
+        duplicate_count = max(count_dict.values())
         print(f"{duplicate_count} duplicates found within first {total_signatures_count} transactions")
-        if ((duplicate_count * 100) / total_signatures_count) > 30:
-            print(f"{((duplicate_count * 100) / total_signatures_count)}% of early transactions are bundled")
+        if ((duplicate_count * 100) / total_signatures_count) > int(os.getenv('DUPLICATE_FIRST_TRANSACTIONS_PCT')):
+            print(f"{round(((duplicate_count * 100) / total_signatures_count))}% of early transactions are bundled")
             return True
     return False
 

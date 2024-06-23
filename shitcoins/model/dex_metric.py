@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from datetime import datetime
 from typing import TypedDict
 
 
@@ -7,3 +10,4 @@ class DexMetric(TypedDict):
     liquidity: float
     price: float
     token_name: str
+    created_at_utc: datetime | None

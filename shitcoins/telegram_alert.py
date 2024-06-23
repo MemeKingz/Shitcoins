@@ -3,6 +3,8 @@ import json
 import requests
 from dotenv import load_dotenv
 
+from shitcoins.util.time_util import datetime_from_utc_to_local
+
 # Load environment variables from .env file
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -84,11 +86,15 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 message.append(f"💦Liquidity: <strong>{liquidity_formatted}</strong>")
             except KeyError:
                 message.append("💦Liquidity: <strong>N/A</strong>")
-            #get token age data
             try:
-                message.append(f"🕗Token Age: <strong>N/A</strong>")
+                utc_time = coin_data['market_info']['created_at_utc']
+                if utc_time is not None:
+                    local_creation_time = datetime_from_utc_to_local(utc_time)
+                    message.append(f"🕗Token Age (ACST): <strong>{local_creation_time.ctime()}</strong>")
+                else:
+                    message.append(f"🕗Token Age (ACST): <strong>N/A</strong>")
             except KeyError:
-                message.append(f"🕗Token Age: <strong>N/A</strong>")
+                message.append(f"🕗Token Age (ACST): <strong>N/A</strong>")
 
             try:
                 message.append(f"👥Holders: <strong>{total_addresses}</strong>")

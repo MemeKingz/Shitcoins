@@ -32,9 +32,10 @@ async def main():
             if len(coins_data) <= 3:
                 # obtaining first transactions of coins is slow, only do if 3 or less new addresses
                 try:
-                    signatures, earliest_blocktime = await get_first_transaction_sigs(coin_data['coin_address'])
-                    if await is_bundled(signatures, earliest_blocktime):
-                        print(f"SUSPECT :: Coin {coin_data['coin_address']} being bundled :: SKIPPING")
+                    signatures, earliest_block_time = await get_first_transaction_sigs(coin_data['coin_address'])
+                    # check first 500 transactions to determine if a bundled coin
+                    if await is_bundled(signatures[:500]):
+                        print(f"Coin {coin_data['coin_address']} seems bundled :: SKIPPING")
                         continue
                 except Exception as e:
                     print("ERROR trying to determine if coin is bundled with sol API")
