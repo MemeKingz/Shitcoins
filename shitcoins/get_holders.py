@@ -6,6 +6,7 @@ import os
 import re
 
 from shitcoins.model.holder import Holder
+from itertools import groupby
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,6 +18,11 @@ solana_address_pattern = re.compile(r"^[A-HJ-NP-Za-km-z1-9]{44}$")
 def is_valid_solana_address(address):
     """Check if the address matches the Solana address pattern."""
     return bool(solana_address_pattern.match(address))
+
+
+def _filter_duplicate_keys_from_list_of_dict(holder_addresses: List[Holder]):
+    l2 = sorted(holder_addresses, key=lambda d: (d['address'], -sum(1 for v in d.values() if v)))
+    return [next(d) for _, d in groupby(l2, key=lambda _d: _d['address'])]
 
 
 def get_holders(token_address) -> List[Holder]:
@@ -55,4 +61,6 @@ def get_holders(token_address) -> List[Holder]:
     if len(holder_addresses) < min_holders_required:
         print(f"Token {token_address} has less than {min_holders_required} holders.")
         return []
-    return holder_addresses
+
+    # filter out duplicates and return
+    return _filter_duplicate_keys_from_list_of_dict(holder_addresses)
