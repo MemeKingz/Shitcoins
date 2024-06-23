@@ -42,7 +42,7 @@ async def main():
                     print(e)
 
             print(f"Getting holder addresses for {coin_data['coin_address']}")
-            holders = list(set(get_holders(coin_data['coin_address'])))
+            holders = get_holders(coin_data['coin_address'])
 
             if len(holders) >= int(os.getenv('MIN_HOLDER_COUNT')):
                 coin_data['holders'] = holders
