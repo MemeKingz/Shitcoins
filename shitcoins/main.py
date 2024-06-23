@@ -34,7 +34,7 @@ async def main():
                 try:
                     signatures, earliest_block_time = await get_first_transaction_sigs(coin_data['coin_address'])
                     # check first 500 transactions to determine if a bundled coin
-                    if await is_bundled(signatures[:500]):
+                    if await is_bundled(signatures[:200]):
                         print(f"Coin {coin_data['coin_address']} seems bundled :: SKIPPING")
                         continue
                 except Exception as e:
