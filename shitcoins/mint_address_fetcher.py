@@ -84,14 +84,14 @@ class MintAddressFetcher:
                                 socials = pair['info']['socials']
                                 # to do store social information like twitter
 
-                        if 'pairCreatedAt' in pair:
-                            token_created_at = pair["pairCreatedAt"] / 1000
-                            creation_time_utc = datetime.utcfromtimestamp(token_created_at)
-
-                            if (dex_metric['created_at_utc'] is None
-                                    or creation_time_utc < dex_metric['created_at_utc']):
-                                # use earlier found creation time
-                                dex_metric['created_at_utc'] = creation_time_utc
+                        # if 'pairCreatedAt' in pair:
+                        #     token_created_at = pair["pairCreatedAt"] / 1000
+                        #     creation_time_utc = datetime.utcfromtimestamp(token_created_at)
+                        #
+                        #     if (dex_metric['created_at_utc'] is None
+                        #             or creation_time_utc < dex_metric['created_at_utc']):
+                        #         # use earlier found creation time
+                        #         dex_metric['created_at_utc'] = creation_time_utc
 
                     else:
                         # calculate average market_cap via average fdv,  but just use first pair's
@@ -102,10 +102,10 @@ class MintAddressFetcher:
                                                                 token_name=pair['baseToken']['name'],
                                                                 created_at_utc=None)
 
-                        if 'pairCreatedAt' in pair:
-                            token_created_at = pair["pairCreatedAt"] / 1000
-                            creation_time_utc = datetime.utcfromtimestamp(token_created_at)
-                            address_to_dex_metric[addr]['created_at_utc'] = creation_time_utc
+                        # if 'pairCreatedAt' in pair:
+                        #     token_created_at = pair["pairCreatedAt"] / 1000
+                        #     creation_time_utc = datetime.utcfromtimestamp(token_created_at)
+                        #     address_to_dex_metric[addr]['created_at_utc'] = creation_time_utc
 
                 for addr, dex_metric in address_to_dex_metric.items():
                     market_cap = float(dex_metric['total_fdv'] / dex_metric['fdv_count'])

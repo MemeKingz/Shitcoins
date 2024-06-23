@@ -2,6 +2,7 @@ import json
 import os
 import asyncio
 import logging
+import time
 from time import sleep
 
 from mint_address_fetcher import MintAddressFetcher
@@ -34,6 +35,7 @@ async def main():
                 try:
                     signatures, earliest_block_time = await get_first_transaction_sigs(coin_data['coin_address'])
                     # check first 500 transactions to determine if a bundled coin
+                    time.sleep(0.5)
                     if await is_bundled(signatures[:200]):
                         print(f"Coin {coin_data['coin_address']} seems bundled :: SKIPPING")
                         continue

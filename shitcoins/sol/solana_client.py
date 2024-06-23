@@ -95,6 +95,7 @@ async def is_bundled(earliest_signatures: List[RpcConfirmedTransactionStatusWith
         for signatures in signatures_chunked:
             tasks = [get_signature_block_time(client, signature.signature) for signature in signatures]
             results.extend(await asyncio.gather(*tasks))
+            time.sleep(0.2)
 
         count_dict = Counter(results)
         duplicate_count = max(count_dict.values())
