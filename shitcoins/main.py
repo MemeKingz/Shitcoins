@@ -29,7 +29,7 @@ async def main():
         # coin holders are ordered by percentage of the coin they hold (supply)
         for coin_data in coins_data:
             print(f"Getting holder addresses for {coin_data['coin_address']}")
-            holders = list(set(get_holders(coin_data['coin_address'])))
+            holders = get_holders(coin_data['coin_address'])
 
             if len(holders) >= int(os.getenv('MIN_HOLDER_COUNT')):
                 coin_data['holders'] = holders
