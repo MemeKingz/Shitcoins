@@ -6,6 +6,7 @@ import os
 import json
 import re
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -14,6 +15,8 @@ import psycopg2
 import psycopg2.extras
 from shitcoins.model.coin_data import CoinData, Holder
 from shitcoins.database.table.wallet_repository import WalletRepository
+from shitcoins.mp.lock_counter import LockCounter
+from shitcoins.mp.multi_process_rate_limiter import MultiProcessRateLimiter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +101,8 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
     return "UNKNOWN"
 
 
-def check_holder(holder: Holder) -> Holder:
+def check_holder(holder: Holder, lock_counter: LockCounter) -> Holder:
+    lock_counter.wait()
     LOGGER.info(f"Processing holder: {holder}")
 
     wallet_repo = None
@@ -148,10 +152,23 @@ def multiprocess_coin_holders(coin_data: CoinData) -> CoinData:
     total_holders_count = len(coin_data['holders'])
     print(f"Assessing {total_holders_count} holder wallet addresses..")
 
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count()
-                                        - int(os.getenv('RESERVED_CPUS'))) as pool:
-        updated_holders = pool.map(check_holder, coin_data['holders'])
+    mp_rate_limiter = MultiProcessRateLimiter(max_requests=1000, per_seconds=60)
+    lock_counter: LockCounter = mp_rate_limiter.get_lock_counter()
 
-    # Update the holders in the original JSON data
-    coin_data['holders'] = updated_holders
+    futures = []
+    result = []
+    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count() - 1) as executor:
+        for holder in coin_data['holders']:
+            futures.append(executor.submit(check_holder, holder, lock_counter))
+
+        while len(futures):
+            # calling this method carries out the rate limit calculation
+            mp_rate_limiter.cycle()
+
+            for future in futures:
+                if future.done():
+                    result.append(future.result())
+                    futures.remove(future)
+
+    coin_data['holders'] = result
     return coin_data

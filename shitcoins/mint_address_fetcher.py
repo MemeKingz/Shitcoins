@@ -125,6 +125,11 @@ class MintAddressFetcher:
                         if 'fdv' in pair:
                             dex_metric['total_fdv'] += pair['fdv']
                             dex_metric['fdv_count'] += 1
+
+                        if 'info' in pair and 'socials' in pair['info']:
+                            if 'type' in pair['info']['socials']:
+                                socials = pair['info']['socials']
+                                # to do store social information like twitter
                     else:
                         # calculate average market_cap via average fdv,  but just use first pair's
                         # liquidity and price value
