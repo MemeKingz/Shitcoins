@@ -75,11 +75,6 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
                                           .replace(microsecond=0))
                 last_tx_hash = data[-1]['txHash']
 
-                # check for bundlers and if timestamps of first and last are the same
-                if total_transactions <= max_trns_per_req:
-                    if latest_transfer_time == earliest_transfer_time:
-                        return "BUNDLER"
-
                 # check for fresh/old
                 if (len(data) < max_trns_per_req or current_time - latest_transfer_time
                         > timedelta(hours=int(os.getenv('FRESH_WALLET_HOURS')))):
@@ -117,8 +112,7 @@ def check_holder(holder: Holder, lock_counter: LockCounter) -> Holder:
         wallet_repo = WalletRepository(conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_entry = wallet_repo.get_wallet_entry(holder['address'])
         # prematurely return if holder address is not fresh to save api request and time
-        if wallet_entry is not None and (wallet_entry['status'] == 'OLD'
-                                         or wallet_entry['status'] == 'BUNDLER'):
+        if wallet_entry is not None and (wallet_entry['status'] == 'OLD'):
             holder['status'] = wallet_entry['status']
             holder['transactions_count'] = wallet_entry['transactions_count']
             return holder
@@ -134,9 +128,9 @@ def check_holder(holder: Holder, lock_counter: LockCounter) -> Holder:
         holder['transactions_count'] = total_transactions
         hours_diff = time_diff.total_seconds() / 3600
 
-        LOGGER.info(f"First transfer block time for holder {holder}: {blocktime} "
-                    f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
-    elif result == "OLD" or result == "BUNDLER":
+        LOGGER.debug(f"First transfer block time for holder {holder}: {blocktime} "
+                     f"(within 24 hours: {is_within_24_hours} - {hours_diff:.2f} hours old)")
+    elif result == "OLD":
         holder['status'] = result
 
     if wallet_repo is not None and holder['status'] != "UNKNOWN":

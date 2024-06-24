@@ -47,19 +47,14 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             holders = coin_data.get('holders', [])
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
-            bundler_addresses = sum(1 for holder in holders if holder['status'] == 'BUNDLER')
 
             percent_fresh = 0
-            percent_bundler = 0
             if total_addresses != 0:
                 percent_fresh = (fresh_addresses / total_addresses) * 100
-                percent_bundler = (bundler_addresses / total_addresses) * 100
-
             coin_address = os.path.splitext(filename)[0]
 
             market_cap_formatted = "${:,.2f}".format(coin_data['market_info']['market_cap'])
             liquidity_formatted = "${:,.2f}".format(coin_data['market_info']['liquidity'])
-
 
             message = []
 
@@ -106,12 +101,24 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
             except KeyError:
                 message.append("👀Fresh: <strong>N/A</strong>")
 
-            try:
-                if percent_bundler > float(os.getenv('BUNDLED_WALLETS_THRESHOLD_PERCENTAGE')):
-                    coin_data["suspect_bundled"] = True
-                message.append(f'⛳Bundled: <strong>{"Yes" if coin_data.get("suspect_bundled") else "No"}</strong>')
-            except KeyError:
-                message.append("⛳Bundled: <strong>N/A</strong>")
+            # message.append("⛳Bundled: <strong>N/A</strong>")
+            if coin_data['first_buy_statistics'] is not None:
+                try:
+                    message.append(f"⛳Duplicate First Buys: "
+                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_count']}</strong>")
+                except KeyError:
+                    message.append("⛳Duplicate First Buys: <strong>N/A</strong>")
+                try:
+                    message.append(f"⛳% Of Total Billion Supply: "
+                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_pct']}%</strong>")
+                except KeyError:
+                    message.append("⛳& Of Total: <strong>N/A</strong>")
+
+                try:
+                    message.append(f"⛳# Of Wallets: "
+                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_wallet_count']}</strong>")
+                except KeyError:
+                    message.append("⛳# Of Wallets: <strong>N/A</strong>")
 
             message.append('')
             #get twitter link
