@@ -45,6 +45,7 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 continue
 
             holders = coin_data.get('holders', [])
+            firstBuystatistics = coin_data.get("first_buy_statistics", None)
             total_addresses = len(holders)
             fresh_addresses = sum(1 for holder in holders if holder['status'] == 'FRESH')
 
@@ -102,21 +103,21 @@ def alert(coins_dir='coins', bot_token=None, chat_id=None, debug=False):
                 message.append("👀Fresh: <strong>N/A</strong>")
 
             # message.append("⛳Bundled: <strong>N/A</strong>")
-            if coin_data['first_buy_statistics'] is not None:
+            if firstBuystatistics is not None:
                 try:
                     message.append(f"⛳Duplicate First Buys: "
-                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_count']}</strong>")
+                                   f"<strong>{firstBuystatistics['duplicate_count']}</strong>")
                 except KeyError:
                     message.append("⛳Duplicate First Buys: <strong>N/A</strong>")
                 try:
                     message.append(f"⛳% Of Total Billion Supply: "
-                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_pct']}%</strong>")
+                                   f"<strong>{firstBuystatistics['duplicate_pct']}%</strong>")
                 except KeyError:
                     message.append("⛳& Of Total: <strong>N/A</strong>")
 
                 try:
                     message.append(f"⛳# Of Wallets: "
-                                   f"<strong>{coin_data['first_buy_statistics']['duplicate_wallet_count']}</strong>")
+                                   f"<strong>{firstBuystatistics['duplicate_wallet_count']}</strong>")
                 except KeyError:
                     message.append("⛳# Of Wallets: <strong>N/A</strong>")
 
