@@ -20,15 +20,15 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.lock_counter = self.mp_rate_limiter.get_lock_counter()
         self.expected_holder_addr_old: Holder = Holder(address='716gAK3yUXGsB6CQbUw6Yr26neWa4TzZePdYHN299ANd',
                                                        status='OLD', transactions_count=0)
-        self.expected_holder_addr_bundler: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
-                                                           status='BUNDLER', transactions_count=0)
+        self.expected_holder_addr_old2: Holder = Holder(address='5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
+                                                        status='OLD', transactions_count=0)
         self.expected_holder_addr_unknown: Holder = Holder(address='bad address', status='UNKNOWN',
                                                            transactions_count=0)
         self.pump_address = "BE2BzgHTA8UHfAUESULgBcipEtKQqRinhxwT8v69pump"
 
-        self.holders = [self.expected_holder_addr_bundler,
+        self.holders = [self.expected_holder_addr_old2,
                         self.expected_holder_addr_old]
-        self.holder_addresses = [self.expected_holder_addr_bundler['address'],
+        self.holder_addresses = [self.expected_holder_addr_old2['address'],
                                  self.expected_holder_addr_old['address']]
         os.environ['DB_USER'] = 'tests'
         os.environ['DB_PORT'] = '5332'
@@ -64,14 +64,6 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual(1, len(coin_data['holders']))
         self.assertEqual('OLD', coin_data['holders'][0]['status'])
 
-    def test_multiprocess_coin_holders_identifies_bundler(self):
-        os.environ['RUN_WITH_DB'] = 'false'
-        os.environ['SOLSCAN_MAX_TRNS_PER_REQ'] = '1'
-        coin_data: CoinData = CoinData(coin_address=self.pump_address, holders=[self.expected_holder_addr_bundler])
-        coin_data: CoinData = multiprocess_coin_holders(coin_data)
-        self.assertEqual(1, len(coin_data['holders']))
-        self.assertEqual('BUNDLER', coin_data['holders'][0]['status'])
-
     def test_multiprocess_coin_holder_unknown_not_added_to_db(self):
         """
         Test multiprocess_coin_holder function does not save UNKNOWN wallet to database
@@ -91,7 +83,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
 
     def test_multiprocess_coin_holders_added_to_db(self):
         """
-        Test if multiprocess_coin_holders adds OLD and BUNDLER to database
+        Test if multiprocess_coin_holders adds OLD to database
         """
         os.environ['RUN_WITH_DB'] = 'true'
 
@@ -107,8 +99,8 @@ class TestCheckHolderTransfers(unittest.TestCase):
         self.assertEqual('OLD', coin_data['holders'][1]['status'])
 
         os.environ['SOLSCAN_SKIP_THRESHOLD'] = '50'
-        holder_bundler = wallet_repo.get_wallet_entry(self.expected_holder_addr_bundler['address'])
-        self.assertEqual(self.expected_holder_addr_bundler['address'], holder_bundler['address'])
+        holder_old2 = wallet_repo.get_wallet_entry(self.expected_holder_addr_old2['address'])
+        self.assertEqual(self.expected_holder_addr_old2['address'], holder_old2['address'])
 
     def test_multiprocess_coin_holders_skip_checks_if_in_db(self):
         """
@@ -118,7 +110,7 @@ class TestCheckHolderTransfers(unittest.TestCase):
         wallet_repo = WalletRepository(self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor))
         wallet_repo.truncate_all_entries()
         wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_old)
-        wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_bundler)
+        wallet_repo.insert_new_wallet_entry(self.expected_holder_addr_old2)
         coin_data: CoinData = CoinData(coin_address=self.pump_address,
                                        market_info=MarketInfo(market_cap=0, liquidity=0, price=0),
                                        holders=self.holders)

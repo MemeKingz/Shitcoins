@@ -154,7 +154,7 @@ class MintAddressFetcher:
                     if new_address in dexscreener_addr_to_market_info:
                         if self._is_within_market_cap(dexscreener_addr_to_market_info[new_address]['market_cap']):
                             return_coins_data.append(CoinData(coin_address=new_address,
-                                                              suspect_bundled=False,
+                                                              first_buy_statistics=None,
                                                               market_info=dexscreener_addr_to_market_info[new_address],
                                                               holders=[]))
                         else:
