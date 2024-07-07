@@ -35,6 +35,10 @@ def is_valid_solana_address(address):
     """Check if the address matches the Solana address pattern."""
     return bool(solana_address_pattern.match(address))
 
+def is_exchange_wallet(data: any):
+    FTX = '6ZRCB7AAqGre6c72PRz3MHLC73VMYvJ8bi9KHf1HFpNk'
+
+    return True
 
 def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) -> (
         None | str | tuple[datetime, int]):
@@ -42,6 +46,7 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
         LOGGER.info(f"Invalid Solana address: {holder_addr}")
         return "UNKNOWN"
 
+    from_exchange = False
     max_trns_per_req = int(os.getenv('SOLSCAN_MAX_TRNS_PER_REQ'))
     skip_threshold = int(os.getenv('SOLSCAN_SKIP_THRESHOLD'))
     total_transactions = 0
@@ -73,6 +78,10 @@ def get_first_transfer_time_or_status(holder_addr: str, current_time: datetime) 
                                         .replace(microsecond=0))
                 earliest_transfer_time = (datetime.fromtimestamp(data[len(data) - 1]['blockTime'], tz=timezone.utc)
                                           .replace(microsecond=0))
+
+                if from_exchange is False:
+                    from_exchange = is_exchange_wallet(data)
+
                 last_tx_hash = data[-1]['txHash']
 
                 # check for fresh/old
